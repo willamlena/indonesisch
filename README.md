@@ -4,10 +4,11 @@ Offline-Web-App (PWA) zum täglichen Indonesisch-Lernen für Deutschsprachige.
 Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 
 - **1.153 Lernkarten:** 934 Wörter/Ausdrücke und 219 Übungssätze in 44 Themen, vom Häufigsten zum Spezielleren
-- **31 Grammatik-Lektionen** mit Mini-Quiz, jeweils direkt vor dem passenden Thema
-- **Verteilte Wiederholung (FSRS):** Gekonnte Wörter kommen seltener, vergessene öfter
+- **Lektionen:** neue Wörter, 31 Grammatik-Lektionen mit Mini-Quiz, Übungssätze – 9 Übungstypen (Hören, Eintippen, Lückentext, Sätze bauen …)
+- **Vokabeltrainer:** Alle gelernten Wörter als Karteikarten, abwechselnd in beide Richtungen, in Runden à 20 Karten. Gekonnte Karten kommen seltener, vergessene öfter (FSRS).
+- **Beispielsätze passend zum Lernstand:** Zu jeder Karte der Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter lassen sich antippen und übersetzen.
+- **Eigene Vokabeln** mit Wortart: Die App baut Beispielsätze nur aus bereits gelernten Wörtern. Kurswörter aus späteren Lektionen lassen sich vorziehen.
 - **Passt sich an:** Ein persönlicher Gedächtnis-Faktor stellt die Abstände ein. Die Zahl neuer Wörter pro Tag richtet sich nach Trefferquote und Tageszeit.
-- **9 Übungstypen:** Wiedererkennen, Hören, Eintippen, Lückentext, Sätze bauen, laut Sprechen …
 - **Standardsprache mit Alltagsform** (tidak → nggak), Vorlesen über die Sprachausgabe des Handys
 
 ---
@@ -58,8 +59,10 @@ Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 | `vocab.js`, `grammar.js` | Kursinhalt |
 | `srs.js` | Wiederholungs-Algorithmus (FSRS-4.5 + persönlicher Gedächtnis-Faktor) |
 | `store.js` | Lernstand, Tagesplanung, Anpassung ans Tempo |
-| `session.js` | Lernsitzung und Übungstypen |
-| `app.js` | Ansichten: Heute, Kurs, Wörter, Statistik, Einstellungen |
+| `session.js` | Lektion und Übungstypen |
+| `trainer.js` | Vokabeltrainer (Karteikarten) |
+| `examples.js` | Beispielsätze passend zum Lernstand, Satzbausteine für eigene Wörter, Nachschlagen |
+| `app.js` | Ansichten: Heute, Kurs, Trainer, Wörter, Statistik, Einstellungen |
 | `util.js` | Hilfsfunktionen, Sprachausgabe, Icons |
 | `sw.js`, `manifest.webmanifest`, `icon*` | Offline-Fähigkeit und Installation |
 

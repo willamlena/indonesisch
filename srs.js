@@ -90,5 +90,13 @@
     return retrievability(Math.max(0, (now - card.last) / DAY), card.s * m);
   }
 
-  window.Srs = { graduate, review, updateMemoryFactor, currentRecall, TARGET };
+  // Vorschau für die Bewertungsknöpfe: In wie vielen Tagen käme die Karte wieder? (0 = heute nochmal)
+  function previewInterval(card, g, now, m) {
+    if (g === 1) return 0;
+    const r = retrievability(Math.max(0, (now - card.last) / DAY), card.s * m);
+    return clamp(Math.round(recallStability(card.d, card.s, r, g) * m), 1, MAX_INTERVAL);
+  }
+  const startInterval = (g, m) => clamp(Math.round(START[g] * m), 1, MAX_INTERVAL);
+
+  window.Srs = { graduate, review, updateMemoryFactor, currentRecall, previewInterval, startInterval, TARGET };
 })();

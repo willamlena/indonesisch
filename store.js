@@ -73,6 +73,7 @@
     },
     learner: { m: 1, base: 10 },
     cards: {}, days: {}, lessons: {}, custom: [], log: [],
+    pull: [], // Kurswörter, die vorzeitig in den Vokabeltrainer geholt wurden
     plan: null,
     ui: {},
   });
@@ -95,15 +96,23 @@
     catch (e) { window.U.toast('Speichern fehlgeschlagen – ist der Speicher voll?'); }
   }
 
+  // pos = Wortart für automatische Beispielsätze: n = Ding, v = Tätigkeit, a = Eigenschaft, x = Ausdruck
   function registerCustom(c) {
-    CARDS[c.id] = { id: c.id, unit: CUSTOM, kind: 'w', indo: c.indo, de: c.de, coll: '', ex: c.ex || '', exde: c.exde || '', note: c.note || '', custom: true };
+    CARDS[c.id] = { id: c.id, unit: CUSTOM, kind: 'w', indo: c.indo, de: c.de, coll: '', ex: c.ex || '', exde: c.exde || '', note: c.note || '', pos: c.pos || 'x', custom: true };
   }
-  function addCustom(indo, de, ex, exde) {
-    const c = { id: 'c:' + Date.now().toString(36), indo, de, ex, exde, created: Date.now() };
+  function addCustom(indo, de, ex, exde, pos) {
+    const c = { id: 'c:' + Date.now().toString(36), indo, de, ex, exde, pos, created: Date.now() };
     S.custom.push(c);
     registerCustom(c);
     save();
     return c;
+  }
+  function updateCustom(id, fields) {
+    const c = S.custom.find(x => x.id === id);
+    if (!c) return;
+    Object.assign(c, fields);
+    registerCustom(c);
+    save();
   }
   function removeCustom(id) {
     S.custom = S.custom.filter(c => c.id !== id);
@@ -119,12 +128,12 @@
     return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
   }
   const today = () => dayNum();
-  // r = Wiederholungen, ok = davon gewusst, n = neu eingeführt, k = „kenne ich schon",
-  // le = Fehler beim Kennenlernen, t = Sekunden, x = Antworten insgesamt
-  const EMPTY_DAY = Object.freeze({ r: 0, ok: 0, n: 0, k: 0, le: 0, t: 0, x: 0 });
+  // r = Wiederholungen, ok = davon gewusst, n = neu in Lektionen, tn = neu im Trainer,
+  // k = „kenne ich schon", le = Fehler beim Kennenlernen, t = Sekunden, x = Antworten insgesamt
+  const EMPTY_DAY = Object.freeze({ r: 0, ok: 0, n: 0, tn: 0, k: 0, le: 0, t: 0, x: 0 });
   function day(n) {
     const k = n == null ? today() : n;
-    if (!S.days[k]) S.days[k] = { r: 0, ok: 0, n: 0, k: 0, le: 0, t: 0, x: 0 };
+    if (!S.days[k]) S.days[k] = { r: 0, ok: 0, n: 0, tn: 0, k: 0, le: 0, t: 0, x: 0 };
     return S.days[k];
   }
   const dayRead = n => S.days[n == null ? today() : n] || EMPTY_DAY;
@@ -139,20 +148,38 @@
       .sort((a, b) => a[1] - b[1]) // was am ehesten vergessen wird, zuerst
       .map(x => x[0]);
   }
-  const learningIds = () => Object.keys(S.cards).filter(id => S.cards[id].st === 'L' && CARDS[id]);
+  const dueWordIds = () => dueIds().filter(id => CARDS[id].kind === 'w');
+  const dueSentenceIds = () => dueIds().filter(id => CARDS[id].kind === 's');
 
+  // Karten im Lernen. src: 'lesson' = in einer Lektion eingeführt, 'trainer' = im Vokabeltrainer
+  function learningIds(src) {
+    return Object.keys(S.cards).filter(id => {
+      const c = S.cards[id];
+      if (c.st !== 'L' || !CARDS[id]) return false;
+      if (src === 'trainer') return c.src === 't';
+      if (src === 'lesson') return c.src !== 't';
+      return true;
+    });
+  }
+
+  // Nächste neue Kurskarten für die Lektion
   function nextNewIds(n, exclude) {
     const ex = exclude || new Set();
     const out = [];
-    for (const c of S.custom) {
-      if (out.length >= n) return out;
-      if (!S.cards[c.id] && !ex.has(c.id)) out.push(c.id);
-    }
     for (const id of ORDER) {
       if (out.length >= n) break;
-      if (!S.cards[id] && !ex.has(id)) out.push(id);
+      if (!S.cards[id] && !ex.has(id) && !S.pull.includes(id)) out.push(id);
     }
     return out;
+  }
+
+  // Neue Karten für den Vokabeltrainer: eigene Wörter und vorgezogene Kurswörter
+  function trainerNewIds() {
+    return S.custom.map(c => c.id).concat(S.pull).filter(id => CARDS[id] && !S.cards[id]);
+  }
+  function pullToTrainer(id) {
+    if (!S.pull.includes(id)) S.pull.push(id);
+    save();
   }
 
   function currentUnit() {
@@ -223,23 +250,32 @@
   }
   function addExtraNew(n) { plan().extra += n; save(); }
 
+  // Tagesübersicht. Lektion = neue Wörter, Lernschritte, Satz-Wiederholungen.
+  // Vokabeltrainer = fällige Wörter, eigene/vorgezogene neue Wörter.
   function planInfo() {
     const p = plan();
     const d = dayRead();
     const target = p.target + p.extra;
     const available = nextNewIds(target).length;
     const newLeft = Math.min(Math.max(0, target - d.n), available);
-    const due = dueIds().length;
-    const learning = learningIds().length;
+    const due = dueIds();
+    const wordDue = due.filter(id => CARDS[id].kind === 'w').length;
+    const sentDue = due.length - wordDue;
+    const learning = learningIds('lesson').length;
+    const tLearning = learningIds('trainer').length;
+    const tNew = trainerNewIds().length;
     const avg = avgSecs();
-    const minutes = Math.max(1, Math.ceil((due * avg + learning * avg * 2 + newLeft * avg * 3.5) / 60));
-    const doneUnits = d.r + d.n;
-    const total = doneUnits + due + learning + newLeft;
+    const lessonLeft = newLeft + learning + sentDue;
+    const trainerLeft = wordDue + tLearning + tNew;
+    const minutes = Math.max(1, Math.ceil((due.length * avg + (learning + tLearning) * avg * 2 + (newLeft + tNew) * avg * 3.5) / 60));
+    const doneUnits = d.r + d.n + (d.tn || 0);
+    const total = doneUnits + lessonLeft + trainerLeft;
     return {
-      target, newDone: d.n, newLeft, due, learning, minutes,
-      reviewsDone: d.r, progress: total ? doneUnits / total : 1,
-      done: due === 0 && learning === 0 && newLeft === 0,
-      courseDone: available === 0 && nextNewIds(1).length === 0,
+      target, newDone: d.n, newLeft, sentDue, wordDue, learning, tLearning, tNew, minutes,
+      due: due.length, reviewsDone: d.r, progress: total ? doneUnits / total : 1,
+      lessonDone: lessonLeft === 0, trainerDone: trainerLeft === 0,
+      done: lessonLeft === 0 && trainerLeft === 0,
+      courseDone: nextNewIds(1).length === 0,
     };
   }
 
@@ -249,9 +285,10 @@
     if (S.log.length > 1500) S.log.splice(0, S.log.length - 1500);
   }
 
-  function introduce(id) {
+  function introduce(id, src) {
     S.cards[id] = { st: 'L', err: 0, step: 0, intro: Date.now() };
-    day().n++;
+    if (src === 'trainer') { S.cards[id].src = 't'; day().tn++; }
+    else day().n++;
   }
   function graduate(id, g) {
     const prev = S.cards[id] || {};
@@ -280,6 +317,17 @@
     if (last && last[1] === id) last[2] = g;
   }
   function resetCard(id) { delete S.cards[id]; save(); }
+
+  // Gelernte Wörter, die am ehesten vergessen werden (für die Extra-Runde)
+  function weakWordIds(n) {
+    const now = Date.now();
+    return Object.keys(S.cards)
+      .filter(id => S.cards[id].st === 'R' && CARDS[id] && CARDS[id].kind === 'w')
+      .map(id => [id, Srs.currentRecall(S.cards[id], now, S.learner.m) - (S.cards[id].lapses || 0) * 0.05])
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, n)
+      .map(x => x[0]);
+  }
 
   // ---------- Auswertung ----------
   function streak() {
@@ -329,11 +377,12 @@
     get S() { return S; },
     CARDS, ORDER, UNITS, CUSTOM, DAY,
     answersFor, norm,
-    save, load, addCustom, removeCustom, customIds,
+    save, load, addCustom, updateCustom, removeCustom, customIds,
     today, dayNum, day, dayRead,
-    dueIds, learningIds, nextNewIds, currentUnit, unitProgress,
+    dueIds, dueWordIds, dueSentenceIds, learningIds, nextNewIds, trainerNewIds, pullToTrainer,
+    currentUnit, unitProgress,
     avgSecs, recentAccuracy, plan, planInfo, addExtraNew, baseForMinutes,
-    introduce, graduate, markKnown, applyReview, reapplyReview, resetCard,
+    introduce, graduate, markKnown, applyReview, reapplyReview, resetCard, weakWordIds,
     streak, strength, vocabCount, level,
     exportData, importData, resetAll,
   };

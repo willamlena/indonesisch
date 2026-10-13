@@ -1,10 +1,12 @@
-// Oberfläche: Startseite, Kurs, Wörter, Statistik, Einstellungen – und der Start von Lernsitzungen.
+// Oberfläche: Startseite, Kurs, Vokabeltrainer, Wörter, Statistik, Einstellungen –
+// und der Start von Lektionen und Trainer-Runden.
 (function () {
   const { esc, inline, icon, Speech, shuffle, lessonHTML, toast } = window.U;
   const St = window.Store;
+  const Ex = window.Examples;
   const app = document.getElementById('app');
   let tab = 'home';
-  let session = null;
+  let session = null; // laufende Lektion oder Trainer-Runde
   let wordFilter = { q: '', f: 'all' };
   let installEvent = null;
   let swWaiting = null;
@@ -16,7 +18,7 @@
   function render(keepScroll) {
     if (session) return;
     const y = keepScroll ? window.scrollY : 0;
-    const views = { home: viewHome, course: viewCourse, words: viewWords, stats: viewStats, settings: viewSettings };
+    const views = { home: viewHome, course: viewCourse, trainer: viewTrainer, words: viewWords, stats: viewStats, settings: viewSettings };
     app.innerHTML = `<main class="page page-${tab}">${views[tab]()}</main>${tab === 'settings' ? '' : nav()}`;
     if (tab === 'words') bindWords();
     if (tab === 'settings') bindSettings();
@@ -26,7 +28,7 @@
   function nav() {
     const item = (t, ic, label) =>
       `<button class="nav-item${tab === t ? ' active' : ''}" data-act="tab" data-v="${t}" aria-label="${label}">${icon(ic, 24)}<span>${label}</span></button>`;
-    return `<nav class="tabbar">${item('home', 'home', 'Heute')}${item('course', 'course', 'Kurs')}${item('words', 'words', 'Wörter')}${item('stats', 'stats', 'Statistik')}</nav>`;
+    return `<nav class="tabbar">${item('home', 'home', 'Heute')}${item('course', 'course', 'Kurs')}${item('trainer', 'cards', 'Trainer')}${item('words', 'words', 'Wörter')}${item('stats', 'stats', 'Statistik')}</nav>`;
   }
 
   function go(t) {
@@ -71,27 +73,39 @@
         <div class="today-done">
           <div class="big-emoji">${p.courseDone ? '🏆' : '✅'}</div>
           <h2>${p.courseDone ? 'Kurs abgeschlossen!' : 'Geschafft für heute!'}</h2>
-          <p class="muted">${p.courseDone ? 'Alle Kurswörter sind gelernt. Wiederholungen kommen weiter – und du kannst eigene Wörter hinzufügen.' : 'Morgen warten neue Wörter und die passenden Wiederholungen. Sampai besok!'}</p>
+          <p class="muted">${p.courseDone ? 'Alle Kurswörter sind gelernt. Der Vokabeltrainer wiederholt sie weiter – und du kannst eigene Wörter hinzufügen.' : 'Morgen warten neue Wörter und die passenden Wiederholungen. Sampai besok!'}</p>
           <div class="btn-stack">
             ${p.courseDone ? '' : '<button class="btn primary block" data-act="more">+5 neue Wörter</button>'}
-            ${learnedAny ? '<button class="btn ghost block" data-act="practice">Schwache Wörter üben</button>' : ''}
+            ${learnedAny ? '<button class="btn ghost block" data-act="extra">Extra-Runde: schwache Wörter</button>' : ''}
           </div>
         </div>`;
     } else {
-      const parts = [];
-      if (p.due) parts.push(`<b>${p.due}</b> ${p.due === 1 ? 'Wiederholung' : 'Wiederholungen'}`);
-      if (p.learning) parts.push(`<b>${p.learning}</b> im Lernen`);
-      if (p.newLeft) parts.push(`<b>${p.newLeft}</b> neue`);
+      // Empfehlung: erst wiederholen (Trainer), dann Neues (Lektion)
+      const trainerFirst = !p.trainerDone && p.wordDue > 0;
+      const lessonParts = [];
+      if (p.newLeft) lessonParts.push(`${p.newLeft} neue ${p.newLeft === 1 ? 'Karte' : 'Karten'}`);
+      if (p.learning) lessonParts.push(`${p.learning} im Lernen`);
+      if (p.sentDue) lessonParts.push(`${p.sentDue} ${p.sentDue === 1 ? 'Satz' : 'Sätze'}`);
+      const trainerN = p.wordDue + p.tLearning + p.tNew;
+      const trainerText = trainerN
+        ? `${trainerN} ${trainerN === 1 ? 'Karte' : 'Karten'}${p.tNew ? ` · ${p.tNew} neu` : ''}`
+        : (vc.words ? 'alles wiederholt' : 'füllt sich mit jeder Lektion');
+      const task = (act, emoji, title, text, done, primary) => `
+        <div class="task${done ? ' done' : ''}">
+          <span class="task-ic">${emoji}</span>
+          <span class="grow"><b>${title}</b><span class="muted">${text}</span></span>
+          ${done ? `<span class="task-check">${icon('check', 20)}</span>` : `<button class="btn ${primary ? 'primary' : 'ghost'} sm" data-act="${act}">Starten</button>`}
+        </div>`;
       today = `
         <div class="today-row">
           <div class="ring-wrap">${ring(p.progress)}<span>${Math.round(p.progress * 100)}%</span></div>
           <div>
             <h2>Heute</h2>
-            <p>${parts.join(' · ')}</p>
             <p class="muted">ca. ${p.minutes} Min.</p>
           </div>
         </div>
-        <button class="btn primary block big" data-act="start">${fresh ? "Los geht's!" : p.reviewsDone || p.newDone ? 'Weiterlernen' : 'Lernen starten'}</button>`;
+        ${task('trainer', '🃏', 'Vokabeltrainer', trainerText, p.trainerDone, trainerFirst)}
+        ${task('start', '📘', fresh ? 'Erste Lektion' : 'Lektion', lessonParts.join(' · ') || 'erledigt', p.lessonDone, !trainerFirst)}`;
     }
 
     const banners = [];
@@ -139,8 +153,57 @@
           <div class="muted small">${up.done} von ${up.total} gelernt${lesson ? ` · 📘 ${esc(lesson.title)}` : ''}</div>
         </div>
       </section>
-      ${learnedAny && !p.done ? `<button class="btn ghost block" data-act="practice">Schwache Wörter extra üben</button>` : ''}
     `;
+  }
+
+  // ---------- Vokabeltrainer ----------
+  function viewTrainer() {
+    const S = St.S;
+    const p = St.planInfo();
+    const t = St.today();
+    let total = 0, tomorrow = 0, strong = 0;
+    Object.keys(S.cards).forEach(id => {
+      const c = S.cards[id], k = St.CARDS[id];
+      if (!k || k.kind !== 'w') return;
+      total++;
+      if (c.st === 'R' && c.due === t + 1) tomorrow++;
+      if (c.st === 'R' && c.s >= 21) strong++;
+    });
+    const ready = p.wordDue + p.tLearning + p.tNew;
+    const hero = ready ? `
+      <div class="deck"><span>${ready}</span></div>
+      <h2>${ready} ${ready === 1 ? 'Karte' : 'Karten'} bereit</h2>
+      <p class="muted">${p.tNew ? `davon ${p.tNew} neu · ` : ''}in Runden à 20 Karten</p>
+      <button class="btn primary block big" data-act="trainer">Trainer starten</button>` : `
+      <div class="big-emoji">${total ? '✅' : '🃏'}</div>
+      <h2>${total ? 'Alles wiederholt!' : 'Dein Trainer ist noch leer'}</h2>
+      <p class="muted">${total ? `Morgen ${tomorrow === 1 ? 'ist' : 'sind'} <b>${tomorrow}</b> ${tomorrow === 1 ? 'Karte' : 'Karten'} dran.` : 'Jedes Wort, das du in einer Lektion lernst, kommt automatisch hierher. Oder füge eigene Vokabeln hinzu.'}</p>
+      ${total >= 5 ? '<button class="btn ghost block" data-act="extra">Extra-Runde: schwache Wörter</button>' : ''}`;
+    const customs = S.custom.slice().reverse();
+    return `
+      <header class="topbar"><h1>Vokabeltrainer</h1><button class="icon-btn" data-act="addword" aria-label="Eigene Vokabel hinzufügen">${icon('plus', 24)}</button></header>
+      <section class="card trainer-hero">${hero}</section>
+      <section class="stat-row">
+        <div class="mini-stat"><b>${total}</b><span>Karten</span></div>
+        <div class="mini-stat"><b>${tomorrow}</b><span>morgen</span></div>
+        <div class="mini-stat"><b>${strong}</b><span>sicher</span></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h3>Eigene Vokabeln</h3><button class="btn ghost sm" data-act="addword">${icon('plus', 16)} Hinzufügen</button></div>
+        ${customs.length ? `<div class="word-list">${customs.map(c => wordRow(St.CARDS[c.id])).join('')}</div>`
+          : '<p class="muted small">Hast du unterwegs ein neues Wort gehört? Füge es hinzu – der Trainer zeigt es dir mit Sätzen aus Wörtern, die du schon kennst.</p>'}
+      </section>
+      <section class="card">
+        <details>
+          <summary><b>So funktioniert der Trainer</b></summary>
+          <div class="method">
+            <p><b>Karteikarten:</b> Schau dir die Vorderseite an, sag die Antwort laut und dreh die Karte um. Dann bewertest du dich ehrlich: <i>Nochmal</i>, <i>Schwer</i>, <i>Gut</i> oder <i>Leicht</i>. Unter jedem Knopf siehst du, wann die Karte wiederkommt.</p>
+            <p><b>Beide Richtungen:</b> Mal siehst du das indonesische Wort, mal das deutsche – so lernst du verstehen <i>und</i> selbst sprechen.</p>
+            <p><b>Automatisch befüllt:</b> Jedes Wort aus den Lektionen landet hier. Gekonnte Wörter kommen in immer größeren Abständen, vergessene schon bald wieder.</p>
+            <p><b>Passende Beispielsätze:</b> Zu jeder Karte zeigt die App den Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter sind unterstrichen – antippen zeigt die Übersetzung.</p>
+          </div>
+        </details>
+      </section>`;
   }
 
   // ---------- Kurs ----------
@@ -260,9 +323,15 @@
     if (!c) return;
     const st = St.S.cards[id];
     const set = St.S.settings;
+    const u = St.UNITS[c.unit];
     let info;
-    if (!st) info = '<p class="muted">Noch nicht gelernt – kommt im Kurs dran.</p>';
-    else if (st.st === 'L') info = '<p class="muted">Gerade im Lernen.</p>';
+    if (!st) {
+      const pulled = St.S.pull.includes(id) || c.custom;
+      info = pulled
+        ? '<p class="muted">Kommt im nächsten Trainer-Durchgang dran.</p>'
+        : `<p class="muted">Noch nicht gelernt – kommt in Einheit ${u.index + 1} (${esc(u.title)}) dran.</p>
+           ${c.kind === 'w' ? `<button class="btn ghost block" data-act="pull" data-id="${esc(id)}">${icon('cards', 18)} Jetzt in den Vokabeltrainer holen</button>` : ''}`;
+    } else if (st.st === 'L') info = '<p class="muted">Gerade im Lernen.</p>';
     else {
       const r = Srs.currentRecall(st, Date.now(), St.S.learner.m);
       info = `
@@ -273,16 +342,22 @@
           <div><span>Vergessen</span><b>${st.lapses || 0}×</b></div>
         </div>`;
     }
-    const u = St.UNITS[c.unit];
+    // Wörter: Beispielsatz, den man mit dem aktuellen Wortschatz am besten versteht
+    const example = c.kind === 'w' ? Ex.blockHTML(Ex.forCard(c)) : '';
+    const posPicker = c.custom ? `
+      <div class="field-label">Wortart <small>– bestimmt die automatischen Beispielsätze</small></div>
+      <div class="seg">${Object.keys(Ex.POS_LABEL).map(k =>
+        `<button class="seg-btn${c.pos === k ? ' active' : ''}" data-act="pos" data-id="${esc(id)}" data-v="${k}">${Ex.POS_LABEL[k]}</button>`).join('')}</div>` : '';
     openSheet(`
-      <div class="sheet-head"><span class="muted small">${u ? esc(u.icon + ' ' + u.title) : 'Eigenes Wort'}</span>${closeBtn()}</div>
+      <div class="sheet-head"><span class="muted small">${u ? esc(u.icon + ' ' + u.title) : '★ Eigenes Wort'}</span>${closeBtn()}</div>
       <div class="word-detail">
         <div class="intro-head"><div class="${c.kind === 's' ? 'big-sentence' : 'big-word'}">${esc(c.indo)}</div>
           <div class="speak-pair"><button class="speak-btn lg" data-say="${esc(c.indo)}" aria-label="Vorlesen">${icon('speaker', 30)}</button><button class="speak-btn slow" data-say="${esc(c.indo)}" data-slow="1" aria-label="Langsam">${icon('turtle', 20)}</button></div></div>
         ${c.coll && set.colloquial ? `<div class="coll"><span>Alltag</span> ${esc(c.coll)}</div>` : ''}
         <div class="meaning">${esc(c.de)}</div>
         ${c.note ? `<div class="note">💡 ${esc(c.note)}</div>` : ''}
-        ${c.ex ? `<div class="example"><div class="ex-row"><div><div class="ex-id">${esc(c.ex)}</div><div class="ex-de">${esc(c.exde)}</div></div><button class="speak-btn" data-say="${esc(c.ex)}" aria-label="Vorlesen">${icon('speaker', 20)}</button></div></div>` : ''}
+        ${example}
+        ${posPicker}
         ${info}
         <div class="btn-stack">
           ${st ? `<button class="btn ghost block" data-act="reset-card" data-id="${esc(id)}">Neu lernen</button>` : ''}
@@ -291,25 +366,75 @@
       </div>`);
   }
 
+  const POS_HINT = {
+    n: 'Ding, Ort oder Person – z. B. kelapa (Kokosnuss), pantai (Strand)',
+    v: 'Tätigkeit – Deutsch bitte in der Grundform, z. B. „schwimmen“',
+    a: 'Eigenschaft – z. B. segar (frisch), lucu (süß, lustig)',
+    x: 'Ausdruck oder Redewendung – Beispielsätze nur aus dem Kurs oder deinem eigenen Satz',
+  };
+
   function addWordSheet() {
     openSheet(`
-      <div class="sheet-head"><h2>Eigenes Wort</h2>${closeBtn()}</div>
-      <p class="muted">Hast du ein Wort gehört, das du lernen willst? Es kommt in deiner nächsten Lerneinheit als Erstes dran.</p>
-      <form class="form" id="add-form" autocomplete="off">
-        <label>Indonesisch<input name="indo" required autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="z. B. kelapa muda"></label>
-        <label>Deutsch<input name="de" required placeholder="z. B. junge Kokosnuss"></label>
-        <label>Beispielsatz (optional)<input name="ex" autocapitalize="off" spellcheck="false" placeholder="z. B. Saya mau es kelapa muda."></label>
-        <label>Übersetzung des Beispiels (optional)<input name="exde" placeholder="z. B. Ich möchte eine gekühlte Kokosnuss."></label>
+      <div class="sheet-head"><h2>Eigene Vokabel</h2>${closeBtn()}</div>
+      <p class="muted">Sie kommt sofort in den Vokabeltrainer – mit Beispielsätzen aus Wörtern, die du schon kennst.</p>
+      <form class="form" id="add-form" autocomplete="off" novalidate>
+        <label>Indonesisch<input name="indo" required autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="z. B. kelapa"></label>
+        <label>Deutsch<input name="de" required placeholder="z. B. Kokosnuss"></label>
+        <div>
+          <div class="field-label">Wortart</div>
+          <div class="seg" id="pos-seg">${Object.keys(Ex.POS_LABEL).map(k =>
+            `<button type="button" class="seg-btn" data-pos="${k}">${Ex.POS_LABEL[k]}</button>`).join('')}</div>
+          <p class="muted small pos-hint">Wähle die Wortart – damit baut die App passende Beispielsätze.</p>
+        </div>
+        <div id="add-preview"></div>
+        <details class="own-ex">
+          <summary>Eigenen Beispielsatz hinzufügen (optional)</summary>
+          <label>Beispielsatz<input name="ex" autocapitalize="off" spellcheck="false" placeholder="z. B. Saya mau minum air kelapa."></label>
+          <label>Übersetzung<input name="exde" placeholder="z. B. Ich möchte Kokoswasser trinken."></label>
+        </details>
         <button class="btn primary block" type="submit">Hinzufügen</button>
       </form>`, sheet => {
-      sheet.querySelector('#add-form').onsubmit = e => {
+      const form = sheet.querySelector('#add-form');
+      let pos = '';
+      const preview = () => {
+        const indo = form.indo.value.trim(), de = form.de.value.trim();
+        const box = sheet.querySelector('#add-preview');
+        if (!indo || !de || !pos) { box.innerHTML = ''; return; }
+        const ex = Ex.forCard({ id: 'preview', kind: 'w', custom: true, indo, de, coll: '', pos, unit: St.CUSTOM });
+        box.innerHTML = ex ? `<div class="field-label">So könnte ein Beispielsatz aussehen</div>${Ex.blockHTML(ex)}` : '';
+      };
+      sheet.querySelectorAll('[data-pos]').forEach(b => {
+        b.onclick = () => {
+          pos = b.dataset.pos;
+          sheet.querySelectorAll('[data-pos]').forEach(x => x.classList.toggle('active', x === b));
+          sheet.querySelector('.pos-hint').textContent = POS_HINT[pos];
+          preview();
+        };
+      });
+      form.indo.oninput = preview;
+      form.de.oninput = preview;
+      form.onsubmit = e => {
         e.preventDefault();
-        const f = new FormData(e.target);
-        const indo = String(f.get('indo')).trim(), de = String(f.get('de')).trim();
-        if (!indo || !de) return;
-        St.addCustom(indo, de, String(f.get('ex') || '').trim(), String(f.get('exde') || '').trim());
+        const indo = form.indo.value.trim(), de = form.de.value.trim();
+        if (!indo || !de) { toast('Bitte Indonesisch und Deutsch ausfüllen.'); return; }
+        if (!pos) { toast('Bitte wähle die Wortart.'); return; }
+        const key = St.norm(indo);
+        if (St.S.custom.some(c => St.norm(c.indo) === key)) { toast('Dieses Wort hast du schon hinzugefügt.'); return; }
+        // Gibt es das Wort schon im Kurs? Dann diese Karte verwenden.
+        const course = St.ORDER.map(id => St.CARDS[id]).find(c => c.kind === 'w' && St.answersFor(c).some(a => St.norm(a) === key));
+        if (course) {
+          if (St.S.cards[course.id]) { toast(`„${course.indo}“ kennst du schon – es ist bereits im Trainer.`); return; }
+          if (confirm(`„${course.indo}“ gibt es schon im Kurs (${course.de}). Diese Karte in den Trainer holen?`)) {
+            St.pullToTrainer(course.id);
+            closeSheet();
+            toast('Kommt im nächsten Trainer-Durchgang.');
+            render(true);
+          }
+          return;
+        }
+        St.addCustom(indo, de, form.ex.value.trim(), form.exde.value.trim(), pos);
         closeSheet();
-        toast('Gespeichert – kommt in der nächsten Lerneinheit.');
+        toast('Gespeichert – kommt im nächsten Trainer-Durchgang.');
         render(true);
       };
     });
@@ -610,16 +735,19 @@
   // ---------- Sheet (Bottom-Sheet-Dialog) ----------
   const closeBtn = () => `<button class="icon-btn" data-act="close-sheet" aria-label="Schließen">${icon('x', 22)}</button>`;
   function openSheet(html, onMount) {
+    const replacing = !!document.querySelector('.sheet-backdrop');
     closeSheet(true);
     const el = document.createElement('div');
-    el.className = 'sheet-backdrop';
+    el.className = 'sheet-backdrop' + (replacing ? ' open' : '');
     el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
     el.addEventListener('click', e => { if (e.target === el) closeSheet(); });
     el.addEventListener('click', onAction);
     document.body.appendChild(el);
     document.body.classList.add('sheet-open');
-    requestAnimationFrame(() => el.classList.add('open'));
-    history.pushState({ v: 'sheet' }, '');
+    if (!replacing) {
+      requestAnimationFrame(() => el.classList.add('open'));
+      history.pushState({ v: 'sheet' }, ''); // ein bereits offenes Blatt nutzt seinen Verlaufseintrag weiter
+    }
     if (onMount) onMount(el);
   }
   function closeSheet(silent) {
@@ -634,32 +762,8 @@
   let ignorePop = 0;
   function historyBack() { ignorePop++; history.back(); }
 
-  // ---------- Lernsitzung ----------
-  function weakIds(n) {
-    const now = Date.now();
-    const m = St.S.learner.m;
-    return Object.keys(St.S.cards)
-      .filter(id => St.S.cards[id].st === 'R' && St.CARDS[id])
-      .map(id => [id, Srs.currentRecall(St.S.cards[id], now, m) - (St.S.cards[id].lapses || 0) * 0.05])
-      .sort((a, b) => a[1] - b[1])
-      .slice(0, n)
-      .map(x => x[0]);
-  }
-
-  function startSession(mode) {
-    let opts;
-    if (mode === 'practice') {
-      const ids = shuffle(weakIds(15));
-      if (ids.length < 3) { toast('Lerne zuerst ein paar Wörter.'); return; }
-      opts = { mode: 'practice', reviews: ids };
-    } else {
-      const info = St.planInfo();
-      const learning = St.learningIds();
-      const reviews = St.dueIds().slice(0, 200);
-      const news = St.nextNewIds(info.newLeft);
-      if (!learning.length && !reviews.length && !news.length) { toast('Für heute ist alles erledigt!'); render(); return; }
-      opts = { mode: 'daily', reviews, learning, news };
-    }
+  // ---------- Lektion & Trainer starten ----------
+  function enterSession(create) {
     if (!St.S.ui.welcomed) { St.S.ui.welcomed = true; St.save(); }
     closeSheet(true);
     document.body.classList.add('in-session');
@@ -669,19 +773,51 @@
     app.appendChild(root);
     history.pushState({ v: 'session' }, '');
     window.scrollTo(0, 0);
-    session = new window.Session(root, Object.assign(opts, {
+    session = create(root);
+  }
+  function exitSession() {
+    session = null;
+    document.body.classList.remove('in-session');
+    if (history.state && history.state.v === 'session') historyBack();
+  }
+
+  // Lektion: neue Kurskarten mit Lernschritten, Grammatik, Satz-Wiederholungen
+  function startSession() {
+    const info = St.planInfo();
+    const learning = St.learningIds('lesson');
+    const reviews = St.dueSentenceIds().slice(0, 100);
+    const news = St.nextNewIds(info.newLeft);
+    if (!learning.length && !reviews.length && !news.length) {
+      toast(info.courseDone ? 'Alle Lektionen sind geschafft!' : 'Die Lektion für heute ist erledigt.');
+      render();
+      return;
+    }
+    enterSession(root => new window.Session(root, {
+      mode: 'daily', reviews, learning, news,
       onExit: summary => {
-        session = null;
-        document.body.classList.remove('in-session');
-        if (history.state && history.state.v === 'session') historyBack();
+        exitSession();
         if (summary && summary.more) {
           St.addExtraNew(5);
-          setTimeout(() => startSession('daily'), 50);
+          setTimeout(startSession, 50);
         } else {
           tab = 'home';
           render();
         }
       },
+    }));
+  }
+
+  // Vokabeltrainer: fällige Wörter als Karteikarten, oder Extra-Runde mit schwachen Wörtern
+  function startTrainer(mode) {
+    if (mode === 'extra') {
+      if (St.weakWordIds(3).length < 3) { toast('Lerne zuerst ein paar Wörter.'); return; }
+    } else {
+      const p = St.planInfo();
+      if (!(p.wordDue + p.tLearning + p.tNew)) { toast('Gerade ist keine Karte fällig.'); render(true); return; }
+    }
+    enterSession(root => new window.Trainer(root, {
+      mode: mode || 'due',
+      onExit: () => { exitSession(); render(); },
     }));
   }
 
@@ -697,6 +833,8 @@
   function onAction(e) {
     const say = e.target.closest('[data-say]');
     if (say) { Speech.speak(say.dataset.say, { slow: !!say.dataset.slow }); return; }
+    const tok = e.target.closest('.tok');
+    if (tok && !session) { Ex.onTokenClick(tok); return; }
     const a = e.target.closest('[data-act]');
     if (!a) return;
     const v = a.dataset.v;
@@ -704,9 +842,20 @@
     switch (a.dataset.act) {
       case 'tab': go(v); break;
       case 'back': if (history.state && history.state.v === 'settings') history.back(); else { tab = 'home'; render(); } break;
-      case 'start': startSession('daily'); break;
-      case 'more': St.addExtraNew(5); startSession('daily'); break;
-      case 'practice': startSession('practice'); break;
+      case 'start': startSession(); break;
+      case 'more': St.addExtraNew(5); startSession(); break;
+      case 'trainer': startTrainer('due'); break;
+      case 'extra': startTrainer('extra'); break;
+      case 'pull':
+        St.pullToTrainer(a.dataset.id);
+        closeSheet();
+        toast('Kommt im nächsten Trainer-Durchgang.');
+        render(true);
+        break;
+      case 'pos':
+        St.updateCustom(a.dataset.id, { pos: v });
+        wordSheet(a.dataset.id);
+        break;
       case 'unit': unitSheet(+a.dataset.i); break;
       case 'lesson': lessonSheet(v); break;
       case 'word': wordSheet(a.dataset.id); break;
