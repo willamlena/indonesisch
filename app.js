@@ -11,7 +11,9 @@
   let installEvent = null;
   let swWaiting = null;
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  // iPads melden sich als Mac – erkennbar an Touch-Unterstützung
+  const isIOS = !isAndroid && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
   const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
   // ---------- Navigation ----------
@@ -111,7 +113,8 @@
     const banners = [];
     if (swWaiting) banners.push(`<div class="banner"><span>✨ Eine neue Version ist da.</span><button class="btn sm primary" data-act="sw-update">Aktualisieren</button></div>`);
     if (Speech.missing && !S.ui.voiceHidden) {
-      banners.push(`<div class="banner"><span>🔇 Auf diesem Handy fehlt die indonesische Stimme – ohne sie liest die App nicht vor.</span><button class="btn sm ghost" data-act="voice-help">So geht's</button><button class="icon-btn sm" data-act="hide" data-v="voiceHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
+      const step = S.ui.voiceStep || 0;
+      banners.push(`<div class="banner"><span>🔈 <b>Aussprache einrichten</b> – ${step ? `weiter bei Schritt ${step + 1}` : 'einmalig, ca. 2 Minuten'}.</span><button class="btn sm primary" data-act="voice-help">${step ? 'Weiter' : 'Einrichten'}</button><button class="icon-btn sm" data-act="hide" data-v="voiceHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
     }
     if (!standalone() && !S.ui.installHidden) {
       banners.push(`<div class="banner"><span>📲 Leg die App auf deinen Homescreen – dann läuft sie wie eine echte App, auch offline.</span><button class="btn sm ghost" data-act="install-help">Anleitung</button><button class="icon-btn sm" data-act="hide" data-v="installHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
@@ -576,18 +579,18 @@
 
       <section class="card">
         <h3>Aussprache</h3>
-        <div class="voice-status">${voiceStatusHTML()}</div>
+        ${voiceCardHTML()}
         ${toggle('autoplay', 'Automatisch vorlesen', 'Neue Wörter und Antworten werden vorgesprochen')}
-        <label class="field-row"><span>Sprechtempo</span><input type="range" min="0.6" max="1.2" step="0.05" value="${set.rate}" data-range="rate"></label>
+        <label class="field-row"><span>Sprechtempo</span><input type="range" min="0.6" max="1.2" step="0.05" value="${set.rate}" data-range="rate" aria-label="Sprechtempo"></label>
+        <div class="range-labels"><span>langsamer</span><span>schneller</span></div>
         ${voices.length > 1 ? `
           <label class="field-row"><span>Stimme</span><select data-select="voice">${voices.map(v => `<option value="${esc(v.voiceURI)}" ${v === Speech.current ? 'selected' : ''}>${esc(v.name)}${v.localService ? '' : ' (online)'}</option>`).join('')}</select></label>` : ''}
-        ${Speech.missing ? `
-          <label class="field-row"><span>Von Hand wählen</span><select data-select="manual"><option value="">– Stimme wählen –</option>${Speech.all.map(v => `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label>
-          <p class="muted small">Nur nötig, wenn eine indonesische Stimme installiert ist, aber nicht erkannt wird.</p>` : ''}
-        <div class="btn-row">
-          <button class="btn ghost" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>
-          <button class="btn ghost" data-act="voice-help">${Speech.available ? 'Hilfe zur Stimme' : 'Stimme einrichten'}</button>
-        </div>
+        ${Speech.supported ? `
+          <details class="advanced">
+            <summary>Erweitert</summary>
+            ${manualPickerHTML()}
+            <button class="btn ghost block" data-act="voice-help">Einrichtungs-Assistent öffnen</button>
+          </details>` : ''}
       </section>
 
       <section class="card">
@@ -643,15 +646,7 @@
     range.onchange = () => { St.S.settings.rate = +range.value; St.save(); Speech.speak('Selamat pagi, apa kabar?'); };
     const sel = app.querySelector('[data-select="voice"]');
     if (sel) sel.onchange = () => { St.S.settings.voice = sel.value; St.save(); Speech.speak('Terima kasih banyak!'); };
-    const manual = app.querySelector('[data-select="manual"]');
-    if (manual) manual.onchange = () => {
-      if (!manual.value) return;
-      Object.assign(St.S.settings, { voice: manual.value, voiceManual: true });
-      St.save();
-      Speech.refresh();
-      render(true);
-      Speech.speak('Selamat pagi! Apa kabar?');
-    };
+    bindManualPicker(app);
     const time = app.querySelector('[data-time="reminder"]');
     time.onchange = () => { St.S.settings.reminder = time.value || '19:00'; St.save(); };
     const file = app.querySelector('#import-file');
@@ -725,48 +720,116 @@
       <p class="muted small">Nach dem ersten Öffnen funktioniert die App auch ohne Internet.</p>`);
   }
 
-  // Welche Stimme liest gerade vor?
-  function voiceStatusHTML() {
+  // ---------- Aussprache einrichten ----------
+  // Statuskarte in den Einstellungen: entweder „bereit" mit Probe oder „einrichten" mit Knopf
+  function voiceCardHTML() {
     const set = St.S.settings;
-    if (!Speech.supported) return '<span class="vs bad">⚠️ Dieser Browser kann nicht vorlesen.</span>';
+    const step = St.S.ui.voiceStep || 0;
+    if (!Speech.supported) {
+      return `<div class="voice-card warn"><span class="vc-ic">🔇</span><span class="grow"><b>Vorlesen nicht möglich</b>
+        <span>Öffne die App in Chrome (Android) oder Safari (iPhone).</span></span></div>`;
+    }
     if (Speech.available) {
       const v = Speech.current;
-      return `<span class="vs ok">✅ Indonesische Stimme: <b>${esc(v.name)}</b>${v.localService ? '' : ' · braucht Internet'}</span>
-        ${set.voiceManual ? ' <button class="link-btn" data-act="voice-reset">von Hand gewählt – zurücksetzen</button>' : ''}`;
+      return `<div class="voice-card ok"><span class="vc-ic">🔊</span><span class="grow"><b>Aussprache bereit</b>
+        <span>Stimme: ${esc(v.name)}${v.localService ? '' : ' · braucht Internet'}${set.voiceManual ? ' · von Hand gewählt' : ''}</span></span>
+        <button class="btn ghost sm" data-act="test-voice">Probe</button></div>
+        ${set.voiceManual ? '<button class="link-btn" data-act="voice-reset">Stimme wieder automatisch wählen</button>' : ''}`;
     }
-    if (Speech.missing) return '<span class="vs bad">⚠️ Keine indonesische Stimme gefunden. Damit nichts falsch klingt, liest die App erst vor, wenn eine installiert ist.</span>';
-    return '<span class="vs">Stimmen werden gesucht …</span>';
+    if (Speech.missing) {
+      return `<div class="voice-card warn"><span class="vc-ic">🔈</span><span class="grow"><b>Aussprache einrichten</b>
+        <span>${step ? `Weiter bei Schritt ${step + 1}` : 'Einmalig, ca. 2 Minuten'}</span></span>
+        <button class="btn primary sm" data-act="voice-help">${step ? 'Weiter' : 'Einrichten'}</button></div>`;
+    }
+    return '<div class="voice-card"><span class="vc-ic">⏳</span><span class="grow"><b>Stimmen werden gesucht …</b></span></div>';
   }
 
-  function voiceSheet() {
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const android = `
-      <h3>Android – einmalig, ca. 2 Minuten</h3>
-      <ol class="steps">
-        <li>Die App <b>„Sprachdienste von Google“</b> muss installiert und aktuell sein:
-          <a class="btn ghost sm inline-btn" href="https://play.google.com/store/apps/details?id=com.google.android.tts" target="_blank" rel="noopener">Im Play Store öffnen</a></li>
-        <li>Die Handy-<b>Einstellungen</b> öffnen und oben in der Suche <b>„Sprachausgabe“</b> eingeben (bei Samsung: <b>„Text-zu-Sprache“</b>).</li>
-        <li>Als <b>bevorzugte Engine</b> „Sprachdienste von Google“ (oder „Sprachausgabe von Google“) wählen.</li>
-        <li>Daneben auf <b>⚙</b> tippen → <b>Sprachdaten installieren</b> → <b>Indonesisch (Indonesien)</b> → herunterladen, am besten im WLAN.</li>
-        <li><b>Chrome ganz schließen:</b> die Übersicht der offenen Apps öffnen und Chrome sowie diese App wegwischen.</li>
-        <li>Die App wieder öffnen und hier auf <b>Erneut prüfen</b> tippen.</li>
-      </ol>`;
-    const iphone = `
-      <h3>iPhone</h3>
-      <ol class="steps">
-        <li><b>Einstellungen</b> → <b>Bedienungshilfen</b> → <b>Gesprochene Inhalte</b> → <b>Stimmen</b></li>
-        <li><b>Indonesisch</b> wählen und eine Stimme (z. B. <b>Damayanti</b>) laden.</li>
-        <li>Die App ganz schließen, neu öffnen und hier auf <b>Erneut prüfen</b> tippen.</li>
-      </ol>`;
+  // Notlösung: Stimme von Hand wählen, falls eine installierte Stimme nicht erkannt wird
+  function manualPickerHTML() {
+    if (!Speech.all.length) return '';
+    return `
+      <label class="field-row"><span>Stimme von Hand</span><select data-select="manual"><option value="">– wählen –</option>${Speech.all.map(v =>
+        `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label>
+      <p class="muted small">Nur nötig, wenn deine indonesische Stimme installiert ist, aber nicht erkannt wird.</p>`;
+  }
+  function bindManualPicker(root) {
+    const manual = root.querySelector('[data-select="manual"]');
+    if (!manual) return;
+    manual.onchange = () => {
+      if (!manual.value) return;
+      Object.assign(St.S.settings, { voice: manual.value, voiceManual: true });
+      St.save();
+      Speech.refresh();
+      if (document.querySelector('.sheet-backdrop')) voiceSheet();
+      render(true);
+      Speech.speak('Selamat pagi! Apa kabar?');
+    };
+  }
+
+  // Schritte des Assistenten – je Schritt nur eine Sache
+  const VOICE_STEPS = {
+    android: [
+      { icon: '📲', title: 'Google-Sprachdienste holen',
+        text: 'Dein Handy braucht die kostenlose App <b>„Sprachdienste von Google“</b>. Tippe auf den Knopf und im Play Store auf <b>Installieren</b> oder <b>Aktualisieren</b>. Steht dort nur „Öffnen“, ist schon alles da.',
+        link: ['Play Store öffnen', 'https://play.google.com/store/apps/details?id=com.google.android.tts'] },
+      { icon: '⚙️', title: 'Google als Sprachausgabe wählen',
+        text: 'Öffne die <b>Einstellungen</b> deines Handys, tippe oben auf die <b>Suche 🔍</b> und gib <b>„Sprachausgabe“</b> ein (bei Samsung: <b>„Text-zu-Sprache“</b>). Wähle dort als bevorzugte Engine <b>„Sprachdienste von Google“</b>.' },
+      { icon: '⬇️', title: 'Indonesisch herunterladen',
+        text: 'Tippe auf derselben Seite neben „Sprachdienste von Google“ auf das <b>Zahnrad ⚙</b> → <b>Sprachdaten installieren</b> → <b>Indonesisch (Indonesien)</b> → herunterladen. Dann klappt die Aussprache auch ohne Internet.' },
+      { icon: '🔄', title: 'Chrome neu starten',
+        text: 'Öffne die Übersicht deiner offenen Apps und <b>wische Chrome und diese App weg</b>. Öffne die App dann wieder – sie prüft automatisch, ob die Stimme da ist.', check: true },
+    ],
+    ios: [
+      { icon: '⚙️', title: 'Stimme laden',
+        text: 'Öffne <b>Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen</b>, wähle <b>Indonesisch</b> und lade die Stimme <b>Damayanti</b>.' },
+      { icon: '🔄', title: 'App neu starten',
+        text: 'Wische die App aus der App-Übersicht weg und öffne sie wieder – sie prüft automatisch, ob die Stimme da ist.', check: true },
+    ],
+  };
+
+  function voiceSheet(step, notFound) {
+    const S = St.S;
+    if (Speech.available) {
+      S.ui.voiceStep = 0;
+      S.ui.voiceWizard = false;
+      St.save();
+      const v = Speech.current;
+      openSheet(`
+        <div class="sheet-head"><h2>Aussprache</h2>${closeBtn()}</div>
+        <div class="wiz">
+          <div class="wiz-icon">✅</div>
+          <h3>Aussprache ist bereit</h3>
+          <p>Die App liest mit der Stimme <b>${esc(v.name)}</b> vor${v.localService ? ' – auch ohne Internet' : ' (braucht Internet)'}.</p>
+          <button class="btn primary block" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>
+        </div>`);
+      return;
+    }
+    const steps = VOICE_STEPS[isIOS ? 'ios' : 'android'];
+    const i = Math.max(0, Math.min(steps.length - 1, step != null ? step : (S.ui.voiceStep || 0)));
+    S.ui.voiceStep = i;
+    S.ui.voiceWizard = true; // die App merkt sich den Schritt, auch wenn du zwischendurch in die Einstellungen wechselst
+    St.save();
+    const s = steps[i];
     openSheet(`
-      <div class="sheet-head"><h2>Indonesische Stimme</h2>${closeBtn()}</div>
-      <div class="voice-status card-flat">${voiceStatusHTML()}</div>
-      <p>Die App liest mit der Sprachausgabe deines Handys vor. Eine Web-App darf selbst keine Stimmen installieren – das geht nur einmalig in den Einstellungen und ist kostenlos.</p>
-      ${isAndroid ? android : isIOS ? iphone : android + iphone}
-      <div class="btn-row">
-        <button class="btn primary" data-act="voice-recheck">Erneut prüfen</button>
-        <button class="btn ghost" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>
-      </div>`);
+      <div class="sheet-head"><h2>Aussprache einrichten</h2>${closeBtn()}</div>
+      <div class="dots" aria-hidden="true">${steps.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'on' : ''}"></i>`).join('')}</div>
+      ${notFound ? `<div class="callout">Noch keine indonesische Stimme gefunden. Meist hilft es, Chrome ganz zu schließen und die App neu zu öffnen. Prüfe sonst die Schritte davor.</div>` : ''}
+      <div class="wiz">
+        <div class="wiz-icon">${s.icon}</div>
+        <div class="wiz-step">Schritt ${i + 1} von ${steps.length}</div>
+        <h3>${s.title}</h3>
+        <p>${s.text}</p>
+        ${s.link ? `<a class="btn ghost block" href="${s.link[1]}" target="_blank" rel="noopener">${s.link[0]}</a>` : ''}
+      </div>
+      <div class="wiz-nav">
+        ${i > 0 ? `<button class="btn ghost" data-act="voice-step" data-v="${i - 1}">Zurück</button>` : '<span></span>'}
+        ${s.check ? '<button class="btn primary" data-act="voice-recheck">Jetzt prüfen</button>'
+          : `<button class="btn primary" data-act="voice-step" data-v="${i + 1}">Erledigt – weiter</button>`}
+      </div>
+      <div class="wiz-extra">
+        ${s.check ? '' : '<button class="link-btn" data-act="voice-recheck">Stimme schon installiert? Jetzt prüfen</button>'}
+        ${Speech.all.length ? `<details class="advanced"><summary>Stimme wird nicht erkannt?</summary>${manualPickerHTML()}</details>` : ''}
+      </div>`, sheet => bindManualPicker(sheet));
   }
 
   // ---------- Sheet (Bottom-Sheet-Dialog) ----------
@@ -928,12 +991,17 @@
         else if (Speech.missing) { toast('Noch keine indonesische Stimme gefunden.'); if (!document.querySelector('.sheet-backdrop')) voiceSheet(); }
         else Speech.speak('Selamat pagi! Apa kabar?');
         break;
-      case 'voice-recheck':
-        Speech.refresh();
-        toast(Speech.available ? `Gefunden: ${Speech.current.name}` : 'Noch keine indonesische Stimme – Chrome ganz schließen und die App neu öffnen.');
-        voiceSheet();
-        if (Speech.available) Speech.speak('Selamat pagi! Apa kabar?');
+      case 'voice-step': voiceSheet(+v); break;
+      case 'voice-recheck': {
+        const wizard = S.ui.voiceWizard;
+        Speech.refresh(); // meldet einen Erfolg im Assistenten selbst (siehe Speech.listeners)
+        if (!Speech.available) voiceSheet(null, true);
+        else {
+          if (!wizard) voiceSheet();
+          Speech.speak('Halo! Selamat belajar!');
+        }
         break;
+      }
       case 'voice-reset':
         Object.assign(S.settings, { voice: '', voiceManual: false });
         St.save();
@@ -989,10 +1057,19 @@
   };
   let voiceState = '';
   Speech.listeners.push(() => {
+    document.body.classList.toggle('no-voice', Speech.missing);
+    // Assistent lief und die Stimme ist jetzt da → Erfolg melden
+    if (St.S.ui.voiceWizard && Speech.available) {
+      St.S.ui.voiceWizard = false;
+      St.S.ui.voiceStep = 0;
+      St.save();
+      toast('✅ Indonesische Stimme gefunden – die Aussprache ist bereit!');
+      if (document.querySelector('.sheet-backdrop .wiz')) voiceSheet();
+    }
     const now = `${Speech.loaded}|${Speech.voices.length}|${Speech.all.length}`;
     if (now === voiceState) return;
     voiceState = now;
-    if (!session && !document.querySelector('.sheet-backdrop') && (tab === 'home' || tab === 'settings')) render(true);
+    if (!session && (tab === 'home' || tab === 'settings')) render(true);
   });
 
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; });

@@ -144,10 +144,11 @@ p { margin: 0 0 10px; }
 .bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 
 .banner {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  background: var(--accent-soft); border-radius: 16px; padding: 10px 10px 10px 14px; margin-bottom: 12px; font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent-soft); border-radius: 16px; padding: 10px 6px 10px 14px; margin-bottom: 12px; font-size: 14px;
 }
-.banner span { flex: 1 1 180px; }
+.banner span { flex: 1 1 auto; min-width: 0; }
+.banner .btn, .banner .icon-btn { flex: none; }
 
 /* ---------- Startseite ---------- */
 .today h2 { margin-bottom: 2px; }
@@ -305,14 +306,42 @@ p { margin: 0 0 10px; }
 .field-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .field-row span { flex: none; width: 110px; }
 .field-row input[type=range] { flex: 1; accent-color: var(--accent); }
-.field-row select { flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; font-size: 16px; }
+.field-row select { flex: 1; min-width: 0; max-width: 100%; text-overflow: ellipsis; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; font-size: 16px; }
 input[type=time] { min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 0 12px; font-size: 16px; }
 details summary { cursor: pointer; padding: 4px 0; }
-.voice-status { font-size: 15px; margin-bottom: 8px; }
-.voice-status .link-btn { padding: 0; font-size: 14px; }
-.vs.bad { color: var(--bad); }
-.card-flat { background: var(--surface); border-radius: 14px; padding: 12px 14px; margin: 4px 0 14px; }
-.inline-btn { margin-top: 6px; }
+/* Aussprache: Statuskarte und Einrichtungs-Assistent */
+.voice-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 6px;
+  border-radius: 16px; background: var(--surface-2);
+}
+.voice-card.ok { background: var(--ok-soft); }
+.voice-card.warn { background: var(--meh-soft); }
+.voice-card b { display: block; }
+.voice-card .grow > span { display: block; font-size: 14px; color: var(--muted); }
+.vc-ic { font-size: 26px; flex: none; }
+.voice-card + .link-btn { padding: 4px 0 8px; font-size: 14px; }
+.range-labels { display: flex; justify-content: space-between; margin: -6px 0 6px 122px; font-size: 12px; color: var(--muted); }
+.advanced { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+.advanced summary { color: var(--muted); font-size: 14px; font-weight: 600; }
+.advanced[open] summary { margin-bottom: 6px; }
+.dots { display: flex; justify-content: center; gap: 6px; margin: 2px 0 14px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dots i.done { background: var(--ok); }
+.dots i.on { background: var(--accent); width: 22px; border-radius: 99px; }
+.wiz { text-align: center; padding: 4px 6px 8px; }
+.wiz-icon { font-size: 52px; line-height: 1.1; margin-bottom: 6px; }
+.wiz-step { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.wiz h3 { font-size: 21px; margin: 4px 0 10px; }
+.wiz p { font-size: 17px; line-height: 1.5; text-align: left; }
+.wiz .btn { margin-top: 6px; }
+.wiz-nav { display: flex; gap: 10px; margin-top: 10px; }
+.wiz-nav .btn { flex: 1; min-height: 52px; }
+.wiz-nav span { flex: 1; }
+.wiz-extra { text-align: center; margin-top: 10px; }
+.wiz-extra .advanced { text-align: left; }
+.callout { background: var(--meh-soft); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; font-size: 15px; }
+/* Ohne indonesische Stimme sind die Lautsprecher-Knöpfe ausgegraut */
+body.no-voice .speak-btn { opacity: .35; }
 .method p { margin-top: 10px; }
 .danger-zone h3 { color: var(--bad); }
 
