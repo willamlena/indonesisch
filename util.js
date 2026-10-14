@@ -47,33 +47,52 @@
   const speakable = s => String(s).split(' / ')[0].replace(/\([^)]*\)/g, '').replace(/…|\.\.\./g, ' ').trim();
 
   // ---------- Sprachausgabe (Text-to-Speech des Handys) ----------
+  // Indonesisch hat den Sprachcode „id"; Android meldet teils noch den alten Code „in".
+  const isIndonesian = v => /^(id|in)([-_]|$)/i.test(v.lang) || /indones/i.test(v.name);
+
   const Speech = {
     supported: typeof window !== 'undefined' && 'speechSynthesis' in window,
-    voices: [],
+    voices: [],   // indonesische Stimmen (lokale zuerst, die funktionieren offline)
+    all: [],      // alle Stimmen des Geräts
     loaded: false,
     listeners: [],
+    onMissing: null,
     init() {
       if (!this.supported) return;
-      const load = () => {
-        const all = speechSynthesis.getVoices();
-        if (all.length) this.loaded = true;
-        this.voices = all.filter(v => /^id([-_]|$)/i.test(v.lang));
-        this.listeners.forEach(fn => fn());
-      };
+      const load = () => this.refresh();
       load();
       if (speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', load);
       else speechSynthesis.onvoiceschanged = load;
       // Manche Browser melden Stimmen erst verzögert
       setTimeout(() => { this.loaded = true; load(); }, 1500);
     },
+    refresh() {
+      if (!this.supported) return;
+      const all = speechSynthesis.getVoices();
+      if (all.length) this.loaded = true;
+      this.all = all;
+      const set = window.Store && window.Store.S.settings;
+      const found = all.filter(isIndonesian).sort((a, b) => (b.localService ? 1 : 0) - (a.localService ? 1 : 0));
+      // Von Hand gewählte Stimme zählt auch – falls eine Stimme nicht automatisch erkannt wird
+      const manual = set && set.voiceManual && all.find(v => v.voiceURI === set.voice);
+      if (manual && !found.includes(manual)) found.unshift(manual);
+      this.voices = found;
+      this.listeners.forEach(fn => fn());
+    },
     get available() { return this.supported && this.voices.length > 0; },
+    // Stimmen sind bekannt, aber keine indonesische dabei → Vorlesen würde falsch klingen
+    get missing() { return this.supported && this.loaded && this.all.length > 0 && this.voices.length === 0; },
+    get current() {
+      const set = window.Store.S.settings;
+      return this.voices.find(x => x.voiceURI === set.voice) || this.voices[0] || null;
+    },
     speak(text, opts) {
       if (!this.supported || !text) return;
+      if (this.missing) { if (this.onMissing) this.onMissing(); return; }
       const set = window.Store.S.settings;
       const u = new SpeechSynthesisUtterance(speakable(text));
-      u.lang = 'id-ID';
-      const v = this.voices.find(x => x.voiceURI === set.voice) || this.voices[0];
-      if (v) u.voice = v;
+      const v = this.current;
+      if (v) { u.voice = v; u.lang = v.lang.replace('_', '-'); } else u.lang = 'id-ID';
       u.rate = Math.max(0.4, set.rate * (opts && opts.slow ? 0.7 : 1));
       const go = () => speechSynthesis.speak(u);
       if (speechSynthesis.speaking || speechSynthesis.pending) {

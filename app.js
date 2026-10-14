@@ -110,8 +110,8 @@
 
     const banners = [];
     if (swWaiting) banners.push(`<div class="banner"><span>✨ Eine neue Version ist da.</span><button class="btn sm primary" data-act="sw-update">Aktualisieren</button></div>`);
-    if (Speech.supported && Speech.loaded && !Speech.available && !S.ui.voiceHidden) {
-      banners.push(`<div class="banner"><span>🔇 Keine indonesische Stimme gefunden – Vorlesen klingt dann falsch.</span><button class="btn sm ghost" data-act="voice-help">So geht's</button><button class="icon-btn sm" data-act="hide" data-v="voiceHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
+    if (Speech.missing && !S.ui.voiceHidden) {
+      banners.push(`<div class="banner"><span>🔇 Auf diesem Handy fehlt die indonesische Stimme – ohne sie liest die App nicht vor.</span><button class="btn sm ghost" data-act="voice-help">So geht's</button><button class="icon-btn sm" data-act="hide" data-v="voiceHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
     }
     if (!standalone() && !S.ui.installHidden) {
       banners.push(`<div class="banner"><span>📲 Leg die App auf deinen Homescreen – dann läuft sie wie eine echte App, auch offline.</span><button class="btn sm ghost" data-act="install-help">Anleitung</button><button class="icon-btn sm" data-act="hide" data-v="installHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
@@ -576,15 +576,18 @@
 
       <section class="card">
         <h3>Aussprache</h3>
+        <div class="voice-status">${voiceStatusHTML()}</div>
         ${toggle('autoplay', 'Automatisch vorlesen', 'Neue Wörter und Antworten werden vorgesprochen')}
         <label class="field-row"><span>Sprechtempo</span><input type="range" min="0.6" max="1.2" step="0.05" value="${set.rate}" data-range="rate"></label>
         ${voices.length > 1 ? `
-          <label class="field-row"><span>Stimme</span><select data-select="voice">${voices.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === set.voice ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}</select></label>` : ''}
+          <label class="field-row"><span>Stimme</span><select data-select="voice">${voices.map(v => `<option value="${esc(v.voiceURI)}" ${v === Speech.current ? 'selected' : ''}>${esc(v.name)}${v.localService ? '' : ' (online)'}</option>`).join('')}</select></label>` : ''}
+        ${Speech.missing ? `
+          <label class="field-row"><span>Von Hand wählen</span><select data-select="manual"><option value="">– Stimme wählen –</option>${Speech.all.map(v => `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label>
+          <p class="muted small">Nur nötig, wenn eine indonesische Stimme installiert ist, aber nicht erkannt wird.</p>` : ''}
         <div class="btn-row">
           <button class="btn ghost" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>
-          ${Speech.available ? '' : '<button class="btn ghost" data-act="voice-help">Stimme installieren</button>'}
+          <button class="btn ghost" data-act="voice-help">${Speech.available ? 'Hilfe zur Stimme' : 'Stimme einrichten'}</button>
         </div>
-        ${Speech.available ? '' : `<p class="muted small">${Speech.supported ? 'Auf diesem Gerät ist noch keine indonesische Stimme installiert.' : 'Dieser Browser unterstützt keine Sprachausgabe.'}</p>`}
       </section>
 
       <section class="card">
@@ -640,6 +643,15 @@
     range.onchange = () => { St.S.settings.rate = +range.value; St.save(); Speech.speak('Selamat pagi, apa kabar?'); };
     const sel = app.querySelector('[data-select="voice"]');
     if (sel) sel.onchange = () => { St.S.settings.voice = sel.value; St.save(); Speech.speak('Terima kasih banyak!'); };
+    const manual = app.querySelector('[data-select="manual"]');
+    if (manual) manual.onchange = () => {
+      if (!manual.value) return;
+      Object.assign(St.S.settings, { voice: manual.value, voiceManual: true });
+      St.save();
+      Speech.refresh();
+      render(true);
+      Speech.speak('Selamat pagi! Apa kabar?');
+    };
     const time = app.querySelector('[data-time="reminder"]');
     time.onchange = () => { St.S.settings.reminder = time.value || '19:00'; St.save(); };
     const file = app.querySelector('#import-file');
@@ -713,23 +725,48 @@
       <p class="muted small">Nach dem ersten Öffnen funktioniert die App auch ohne Internet.</p>`);
   }
 
+  // Welche Stimme liest gerade vor?
+  function voiceStatusHTML() {
+    const set = St.S.settings;
+    if (!Speech.supported) return '<span class="vs bad">⚠️ Dieser Browser kann nicht vorlesen.</span>';
+    if (Speech.available) {
+      const v = Speech.current;
+      return `<span class="vs ok">✅ Indonesische Stimme: <b>${esc(v.name)}</b>${v.localService ? '' : ' · braucht Internet'}</span>
+        ${set.voiceManual ? ' <button class="link-btn" data-act="voice-reset">von Hand gewählt – zurücksetzen</button>' : ''}`;
+    }
+    if (Speech.missing) return '<span class="vs bad">⚠️ Keine indonesische Stimme gefunden. Damit nichts falsch klingt, liest die App erst vor, wenn eine installiert ist.</span>';
+    return '<span class="vs">Stimmen werden gesucht …</span>';
+  }
+
   function voiceSheet() {
-    openSheet(`
-      <div class="sheet-head"><h2>Indonesische Stimme</h2>${closeBtn()}</div>
-      <p>Die App nutzt die Sprachausgabe deines Handys. Damit die Aussprache stimmt, brauchst du eine indonesische Stimme (einmalig, kostenlos):</p>
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const android = `
+      <h3>Android – einmalig, ca. 2 Minuten</h3>
+      <ol class="steps">
+        <li>Die App <b>„Sprachdienste von Google“</b> muss installiert und aktuell sein:
+          <a class="btn ghost sm inline-btn" href="https://play.google.com/store/apps/details?id=com.google.android.tts" target="_blank" rel="noopener">Im Play Store öffnen</a></li>
+        <li>Die Handy-<b>Einstellungen</b> öffnen und oben in der Suche <b>„Sprachausgabe“</b> eingeben (bei Samsung: <b>„Text-zu-Sprache“</b>).</li>
+        <li>Als <b>bevorzugte Engine</b> „Sprachdienste von Google“ (oder „Sprachausgabe von Google“) wählen.</li>
+        <li>Daneben auf <b>⚙</b> tippen → <b>Sprachdaten installieren</b> → <b>Indonesisch (Indonesien)</b> → herunterladen, am besten im WLAN.</li>
+        <li><b>Chrome ganz schließen:</b> die Übersicht der offenen Apps öffnen und Chrome sowie diese App wegwischen.</li>
+        <li>Die App wieder öffnen und hier auf <b>Erneut prüfen</b> tippen.</li>
+      </ol>`;
+    const iphone = `
       <h3>iPhone</h3>
       <ol class="steps">
         <li><b>Einstellungen</b> → <b>Bedienungshilfen</b> → <b>Gesprochene Inhalte</b> → <b>Stimmen</b></li>
         <li><b>Indonesisch</b> wählen und eine Stimme (z. B. <b>Damayanti</b>) laden.</li>
-        <li>Die App danach komplett schließen und neu öffnen.</li>
-      </ol>
-      <h3>Android</h3>
-      <ol class="steps">
-        <li><b>Einstellungen</b> → <b>System</b> → <b>Sprachen</b> → <b>Sprachausgabe</b> (Text-in-Sprache)</li>
-        <li>Bei <b>Google-Sprachausgabe</b> auf ⚙ → <b>Sprachdaten installieren</b> → <b>Indonesisch</b>.</li>
-        <li>Die App danach neu öffnen.</li>
-      </ol>
-      <button class="btn ghost block" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>`);
+        <li>Die App ganz schließen, neu öffnen und hier auf <b>Erneut prüfen</b> tippen.</li>
+      </ol>`;
+    openSheet(`
+      <div class="sheet-head"><h2>Indonesische Stimme</h2>${closeBtn()}</div>
+      <div class="voice-status card-flat">${voiceStatusHTML()}</div>
+      <p>Die App liest mit der Sprachausgabe deines Handys vor. Eine Web-App darf selbst keine Stimmen installieren – das geht nur einmalig in den Einstellungen und ist kostenlos.</p>
+      ${isAndroid ? android : isIOS ? iphone : android + iphone}
+      <div class="btn-row">
+        <button class="btn primary" data-act="voice-recheck">Erneut prüfen</button>
+        <button class="btn ghost" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>
+      </div>`);
   }
 
   // ---------- Sheet (Bottom-Sheet-Dialog) ----------
@@ -888,7 +925,20 @@
         break;
       case 'test-voice':
         if (!Speech.supported) toast('Dieser Browser kann nicht vorlesen.');
-        else { Speech.speak('Selamat pagi! Apa kabar?'); if (!Speech.available) toast('Keine indonesische Stimme – die Aussprache klingt evtl. falsch.'); }
+        else if (Speech.missing) { toast('Noch keine indonesische Stimme gefunden.'); if (!document.querySelector('.sheet-backdrop')) voiceSheet(); }
+        else Speech.speak('Selamat pagi! Apa kabar?');
+        break;
+      case 'voice-recheck':
+        Speech.refresh();
+        toast(Speech.available ? `Gefunden: ${Speech.current.name}` : 'Noch keine indonesische Stimme – Chrome ganz schließen und die App neu öffnen.');
+        voiceSheet();
+        if (Speech.available) Speech.speak('Selamat pagi! Apa kabar?');
+        break;
+      case 'voice-reset':
+        Object.assign(S.settings, { voice: '', voiceManual: false });
+        St.save();
+        Speech.refresh();
+        render(true);
         break;
       case 'reminder': saveFile('indonesisch-erinnerung.ics', reminderICS(), 'text/calendar'); break;
       case 'export': {
@@ -930,9 +980,16 @@
 
   // ---------- Start ----------
   Speech.init();
+  // Fehlt die Stimme, sagt die App beim Antippen kurz Bescheid (höchstens alle 30 Sekunden)
+  let lastMissingHint = 0;
+  Speech.onMissing = () => {
+    if (Date.now() - lastMissingHint < 30000) return;
+    lastMissingHint = Date.now();
+    toast('Keine indonesische Stimme – Anleitung unter Einstellungen → Aussprache.');
+  };
   let voiceState = '';
   Speech.listeners.push(() => {
-    const now = `${Speech.loaded}|${Speech.voices.length}`;
+    const now = `${Speech.loaded}|${Speech.voices.length}|${Speech.all.length}`;
     if (now === voiceState) return;
     voiceState = now;
     if (!session && !document.querySelector('.sheet-backdrop') && (tab === 'home' || tab === 'settings')) render(true);
@@ -961,9 +1018,12 @@
     });
   }
 
-  // Neuer Tag während die App offen ist → Startseite aktualisieren
+  // Zurück in der App: neue Stimmen erkennen (z. B. nach dem Installieren) und
+  // bei neuem Tag die Startseite aktualisieren
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && !session && tab === 'home') render(true);
+    if (document.visibilityState !== 'visible') return;
+    Speech.refresh();
+    if (!session && tab === 'home') render(true);
   });
 
   render();
