@@ -40,8 +40,8 @@
 
   const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // **fett** in bereits escapetem Text
-  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  // **fett** und ~~durchgestrichen~~ in bereits escapetem Text
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/~~(.+?)~~/g, '<s>$1</s>');
 
   // Text fürs Vorlesen: erste Alternative, ohne Klammern
   const speakable = s => String(s).split(' / ')[0].replace(/\([^)]*\)/g, '').replace(/…|\.\.\./g, ' ').trim();
@@ -86,14 +86,24 @@
       const set = window.Store.S.settings;
       return this.voices.find(x => x.voiceURI === set.voice) || this.voices[0] || null;
     },
+    // opts.slow: langsamer · opts.onend: wird genau einmal aufgerufen, wenn das Vorlesen vorbei ist
+    // (auch wenn nicht vorgelesen werden kann – dann sofort)
     speak(text, opts) {
-      if (!this.supported || !text) return;
-      if (this.missing) { if (this.onMissing) this.onMissing(); return; }
+      opts = opts || {};
+      let done = false;
+      const finish = () => { if (!done) { done = true; if (opts.onend) opts.onend(); } };
+      if (!this.supported || !text) { setTimeout(finish, 0); return; }
+      if (this.missing) { if (this.onMissing) this.onMissing(); setTimeout(finish, 0); return; }
       const set = window.Store.S.settings;
-      const u = new SpeechSynthesisUtterance(speakable(text));
+      const clean = speakable(text);
+      const u = new SpeechSynthesisUtterance(clean);
       const v = this.current;
       if (v) { u.voice = v; u.lang = v.lang.replace('_', '-'); } else u.lang = 'id-ID';
-      u.rate = Math.max(0.4, set.rate * (opts && opts.slow ? 0.7 : 1));
+      u.rate = Math.max(0.4, set.rate * (opts.slow ? 0.7 : 1));
+      u.onend = finish;
+      u.onerror = finish;
+      // Sicherheitsnetz: manche Handys melden das Ende nicht
+      if (opts.onend) setTimeout(finish, 1500 + clean.length * 110 / u.rate);
       const go = () => speechSynthesis.speak(u);
       if (speechSynthesis.speaking || speechSynthesis.pending) {
         speechSynthesis.cancel();
@@ -103,12 +113,66 @@
     stop() { if (this.supported) speechSynthesis.cancel(); },
   };
 
+  // ---------- Spracherkennung (Mikrofon) ----------
+  // Nutzt die Spracherkennung des Handys. Je nach Gerät braucht sie Internet.
+  const Listen = {
+    rec: null,
+    active: false,
+    get supported() {
+      return typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    },
+    // opts: { lang, onInterim(text), onEnd(alternativen[]), onError(code) }
+    start(opts) {
+      if (!this.supported) return false;
+      this.stop();
+      const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const rec = new R();
+      rec.lang = opts.lang || 'id-ID';
+      rec.interimResults = true;
+      rec.continuous = false;
+      rec.maxAlternatives = 3;
+      let finals = [];
+      rec.onresult = e => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) finals = Array.from(r).map(a => a.transcript.trim()).filter(Boolean);
+          else interim += r[0].transcript;
+        }
+        if (opts.onInterim) opts.onInterim(finals[0] || interim);
+      };
+      rec.onerror = e => { if (opts.onError) opts.onError(e.error || 'error'); };
+      rec.onend = () => {
+        if (this.rec === rec) { this.rec = null; this.active = false; }
+        if (opts.onEnd) opts.onEnd(finals);
+      };
+      try {
+        rec.start();
+        this.rec = rec;
+        this.active = true;
+        return true;
+      } catch (err) {
+        if (opts.onError) opts.onError('start');
+        return false;
+      }
+    },
+    stop() {
+      if (this.rec) { try { this.rec.stop(); } catch (e) { /* schon beendet */ } }
+      this.active = false;
+    },
+  };
+
   // ---------- Icons ----------
   const P = {
     home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
     course: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
     words: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
     cards: '<rect x="3" y="7" width="13" height="14" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v12"/>',
+    chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    headphones: '<path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 14v3a2 2 0 0 1-2 2h-1v-6h3zM3 14v3a2 2 0 0 0 2 2h1v-6H3z"/>',
     stats: '<path d="M3 3v18h18"/><path d="M7.5 15v3M12 10v8M16.5 6v12"/>',
     settings: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     speaker: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
@@ -193,5 +257,5 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
 
-  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, icon, lessonHTML, toast };
+  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast };
 })();

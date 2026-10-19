@@ -1,13 +1,15 @@
-// Oberfläche: Startseite, Kurs, Vokabeltrainer, Wörter, Statistik, Einstellungen –
-// und der Start von Lektionen und Trainer-Runden.
+// Oberfläche: Startseite, Kurs, Vokabeltrainer, Gespräche, Wörter, Statistik, Einstellungen –
+// und der Start von Lektionen, Trainer-Runden und Gesprächen.
 (function () {
-  const { esc, inline, icon, Speech, shuffle, lessonHTML, toast } = window.U;
+  const { esc, inline, icon, Speech, Listen, shuffle, lessonHTML, toast } = window.U;
   const St = window.Store;
   const Ex = window.Examples;
+  const Talk = window.Talk;
   const app = document.getElementById('app');
   let tab = 'home';
-  let session = null; // laufende Lektion oder Trainer-Runde
+  let session = null; // laufende Lektion, Trainer-Runde oder Gespräch
   let wordFilter = { q: '', f: 'all' };
+  let ask = { q: '', res: undefined }; // „Situation schildern“: letzte Eingabe und Ergebnis
   let installEvent = null;
   let swWaiting = null;
 
@@ -20,9 +22,10 @@
   function render(keepScroll) {
     if (session) return;
     const y = keepScroll ? window.scrollY : 0;
-    const views = { home: viewHome, course: viewCourse, trainer: viewTrainer, words: viewWords, stats: viewStats, settings: viewSettings };
-    app.innerHTML = `<main class="page page-${tab}">${views[tab]()}</main>${tab === 'settings' ? '' : nav()}`;
+    const views = { home: viewHome, course: viewCourse, trainer: viewTrainer, talk: viewTalk, words: viewWords, stats: viewStats, settings: viewSettings };
+    app.innerHTML = `<main class="page page-${tab}">${views[tab]()}</main>${SUBPAGES.includes(tab) ? '' : nav()}`;
     if (tab === 'words') bindWords();
+    if (tab === 'talk') bindTalk();
     if (tab === 'settings') bindSettings();
     window.scrollTo(0, y);
   }
@@ -30,11 +33,13 @@
   function nav() {
     const item = (t, ic, label) =>
       `<button class="nav-item${tab === t ? ' active' : ''}" data-act="tab" data-v="${t}" aria-label="${label}">${icon(ic, 24)}<span>${label}</span></button>`;
-    return `<nav class="tabbar">${item('home', 'home', 'Heute')}${item('course', 'course', 'Kurs')}${item('trainer', 'cards', 'Trainer')}${item('words', 'words', 'Wörter')}${item('stats', 'stats', 'Statistik')}</nav>`;
+    return `<nav class="tabbar">${item('home', 'home', 'Heute')}${item('course', 'course', 'Kurs')}${item('trainer', 'cards', 'Trainer')}${item('talk', 'chat', 'Gespräche')}${item('words', 'words', 'Wörter')}</nav>`;
   }
 
+  // Unterseiten ohne Tableiste, mit Zurück-Knopf
+  const SUBPAGES = ['settings', 'stats'];
   function go(t) {
-    if (t === 'settings') history.pushState({ v: 'settings' }, '');
+    if (SUBPAGES.includes(t)) history.pushState({ v: t }, '');
     tab = t;
     render();
   }
@@ -134,12 +139,42 @@
         <p class="muted">Du kennst schon ein paar Wörter? Tippe bei neuen Wörtern einfach auf „Kenne ich schon“.</p>
       </section>` : '';
 
+    // Level 2 erreicht: einmal feiern
+    const lp1 = St.levelProgress(1);
+    const level2 = unit.level === 2 && lp1.done === lp1.total && !S.ui.level2Seen ? `
+      <section class="card level-up">
+        <div class="big-emoji">🎉</div>
+        <h2>Level 1 geschafft!</h2>
+        <p>Du hast alle ${lp1.total} Karten der Grundlagen gelernt. Ab jetzt geht es mit <b>Level 2 – Fortgeschritten</b> weiter: Leben in Indonesien, Beruf, Umgangssprache und eigene Meinungen.</p>
+        <button class="btn primary block" data-act="hide" data-v="level2Seen">Los geht's!</button>
+      </section>` : '';
+
+    // Gesprächsvorschlag, sobald ein paar Wörter sitzen
+    const dlg = vc.words >= 15 && Talk ? Talk.recommend(1)[0] : null;
+    const talkCard = dlg ? `
+      <section class="card talk-now" data-act="dialog" data-v="${esc(dlg.id)}" role="button" tabindex="0">
+        <div class="unit-icon">${esc(dlg.icon)}</div>
+        <div class="grow">
+          <div class="label">Gespräch üben</div>
+          <div class="unit-title">${esc(dlg.title)}</div>
+          <div class="muted small">${esc(Talk.fill(dlg.goal, Talk.profile()))}</div>
+        </div>
+        <span class="chev">${icon('chat', 22)}</span>
+      </section>` : '';
+
+    const levelUnits = St.UNITS.filter(u => u.level === unit.level);
+    const posInLevel = levelUnits.indexOf(unit) + 1;
+
     return `
       <header class="topbar">
         <div><div class="greet">${hi}</div><div class="muted">${hiDe}</div></div>
-        <button class="icon-btn" data-act="tab" data-v="settings" aria-label="Einstellungen">${icon('settings', 24)}</button>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-act="tab" data-v="stats" aria-label="Statistik">${icon('stats', 24)}</button>
+          <button class="icon-btn" data-act="tab" data-v="settings" aria-label="Einstellungen">${icon('settings', 24)}</button>
+        </div>
       </header>
       ${banners.join('')}
+      ${level2}
       <section class="card today">${today}</section>
       ${welcome}
       <section class="stat-row">
@@ -150,12 +185,13 @@
       <section class="card unit-now" data-act="unit" data-i="${unit.index}" role="button" tabindex="0">
         <div class="unit-icon">${esc(unit.icon)}</div>
         <div class="grow">
-          <div class="label">Aktuelles Thema · Einheit ${unit.index + 1} von ${St.UNITS.length}</div>
+          <div class="label">Level ${unit.level} · Thema ${posInLevel} von ${levelUnits.length}</div>
           <div class="unit-title">${esc(unit.title)}</div>
           <div class="bar"><i style="width:${(up.done / up.total) * 100}%"></i></div>
           <div class="muted small">${up.done} von ${up.total} gelernt${lesson ? ` · 📘 ${esc(lesson.title)}` : ''}</div>
         </div>
       </section>
+      ${talkCard}
     `;
   }
 
@@ -212,29 +248,50 @@
   // ---------- Kurs ----------
   function viewCourse() {
     const cur = St.currentUnit();
-    const rows = St.UNITS.map(u => {
+    const row = (u, n) => {
       const { done, total } = St.unitProgress(u);
-      const state = done === total ? 'done' : u.index === cur.index ? 'current' : u.index < cur.index ? 'current' : 'later';
+      const state = done === total ? 'done' : u.index <= cur.index ? 'current' : 'later';
       const L = u.lesson && window.LESSONS[u.lesson];
       return `
         <button class="unit-row ${state}" data-act="unit" data-i="${u.index}">
-          <span class="unit-num">${done === total ? icon('check', 18) : u.index + 1}</span>
+          <span class="unit-num">${done === total ? icon('check', 18) : n}</span>
           <span class="grow">
             <span class="unit-title">${esc(u.icon)} ${esc(u.title)}</span>
             <span class="bar"><i style="width:${(done / total) * 100}%"></i></span>
             <span class="muted small">${done}/${total}${L ? ` · 📘 ${esc(L.title)}${St.S.lessons[u.lesson] ? ' ✓' : ''}` : ''}</span>
           </span>
         </button>`;
+    };
+    const LEVELS = [
+      [1, 'Level 1 – Grundlagen', 'A1–A2 · Alltag, Essen, Unterwegs, erste Gespräche'],
+      [2, 'Level 2 – Fortgeschritten', 'B1–B2 · Leben in Indonesien, Beruf, Umgangssprache, Meinungen'],
+    ];
+    const blocks = LEVELS.map(([lv, title, sub]) => {
+      const units = St.UNITS.filter(u => u.level === lv);
+      if (!units.length) return '';
+      const lp = St.levelProgress(lv);
+      const locked = lv > cur.level;
+      return `
+        <section class="level-block${locked ? ' later' : ''}">
+          <div class="level-head">
+            <div class="grow"><h2>${title}</h2><span class="muted small">${sub}</span></div>
+            <span class="pill${lp.done === lp.total ? '' : ' accent'}">${Math.round(lp.done / lp.total * 100)} %</span>
+          </div>
+          ${locked ? '<p class="muted small level-note">Startet automatisch nach Level 1 – du kannst schon reinschauen.</p>' : ''}
+          <div class="unit-list">${units.map((u, k) => row(u, k + 1)).join('')}</div>
+        </section>`;
     }).join('');
     const custom = St.S.custom.length ? `
-      <button class="unit-row" data-act="unit" data-i="-1">
-        <span class="unit-num">★</span>
-        <span class="grow"><span class="unit-title">Eigene Wörter</span><span class="muted small">${St.S.custom.length} Wörter</span></span>
-      </button>` : '';
+      <div class="unit-list">
+        <button class="unit-row" data-act="unit" data-i="-1">
+          <span class="unit-num">★</span>
+          <span class="grow"><span class="unit-title">Eigene Wörter</span><span class="muted small">${St.S.custom.length} Wörter</span></span>
+        </button>
+      </div>` : '';
     return `
       <header class="topbar"><h1>Kurs</h1></header>
-      <p class="muted intro-text">${St.UNITS.length} Themen, vom Wichtigsten zum Spezielleren. Neue Wörter kommen automatisch in dieser Reihenfolge – du kannst trotzdem überall hineinschauen und jede Grammatik-Lektion lesen.</p>
-      <div class="unit-list">${custom}${rows}</div>`;
+      <p class="muted intro-text">${St.UNITS.length} Themen in zwei Levels, vom Wichtigsten zum Spezielleren. Neue Wörter kommen automatisch in dieser Reihenfolge – du kannst trotzdem überall hineinschauen und jede Grammatik-Lektion lesen.</p>
+      ${custom}${blocks}`;
   }
 
   function unitSheet(i) {
@@ -254,6 +311,11 @@
       <div class="sheet-head"><h2>📘 ${esc(L.title)}</h2>${closeBtn()}</div>
       <article class="lesson">${lessonHTML(L)}</article>`);
     if (!St.S.lessons[key]) { St.S.lessons[key] = Date.now(); St.save(); }
+  }
+
+  // „Level 2 · Thema 5“
+  function unitLabel(u) {
+    return `Level ${u.level} · Thema ${St.UNITS.filter(x => x.level === u.level).indexOf(u) + 1}`;
   }
 
   // ---------- Wörter ----------
@@ -332,7 +394,7 @@
       const pulled = St.S.pull.includes(id) || c.custom;
       info = pulled
         ? '<p class="muted">Kommt im nächsten Trainer-Durchgang dran.</p>'
-        : `<p class="muted">Noch nicht gelernt – kommt in Einheit ${u.index + 1} (${esc(u.title)}) dran.</p>
+        : `<p class="muted">Noch nicht gelernt – kommt in ${unitLabel(u)} (${esc(u.title)}) dran.</p>
            ${c.kind === 'w' ? `<button class="btn ghost block" data-act="pull" data-id="${esc(id)}">${icon('cards', 18)} Jetzt in den Vokabeltrainer holen</button>` : ''}`;
     } else if (st.st === 'L') info = '<p class="muted">Gerade im Lernen.</p>';
     else {
@@ -443,6 +505,234 @@
     });
   }
 
+  // ---------- Gespräche ----------
+  const ASK_EXAMPLES = ['Im Restaurant kam das falsche Essen', 'Ich muss zum Arzt', 'Mit dem Vermieter über die Miete reden', 'Unterschied zwischen tidak und bukan', 'Was heißt Kokosnuss?'];
+  const unitOf = d => St.UNITS.find(u => u.key === d.unit) || St.UNITS[0];
+
+  function dialogRow(d) {
+    const st = St.S.dialogs[d.id];
+    const u = unitOf(d);
+    const ready = u.index <= St.currentUnit().index + 1;
+    const sub = st ? `${st.n}× geübt` : ready ? 'passt zu deinem Stand' : `Wörter dazu ab Thema ${St.UNITS.filter(x => x.level === u.level).indexOf(u) + 1}`;
+    const pill = st ? `<span class="pill${st.best >= 0.8 ? '' : ' accent'}">${Math.round(st.best * 100)} %</span>`
+      : ready ? '<span class="pill accent">neu</span>' : '';
+    return `
+      <button class="dlg-row${ready || st ? '' : ' later'}" data-act="dialog" data-v="${esc(d.id)}">
+        <span class="dlg-ic">${esc(d.icon)}</span>
+        <span class="grow"><b>${esc(d.title)}</b><span class="muted small">${d.level === 2 ? 'Level 2 · ' : ''}${d.personal ? 'über dich · ' : ''}${sub}</span></span>
+        ${pill}
+      </button>`;
+  }
+
+  function askResultsHTML() {
+    const r = ask.res;
+    if (r === undefined) return '';
+    const head = `<div class="card-head"><span class="muted small">Zusammengestellt für <b>„${esc(ask.q)}“</b></span><button class="icon-btn sm" data-act="ask-clear" aria-label="Schließen">${icon('x', 18)}</button></div>`;
+    if (r === null) return `<section class="card ask-results">${head}<p class="muted">Schreib ein paar Stichworte mehr – z. B. <i>„Im Restaurant kam das falsche Essen“</i>.</p></section>`;
+    const parts = [];
+    if (r.dialogs.length) parts.push(`<h3>Passende Gespräche</h3><div class="dlg-list">${r.dialogs.map(dialogRow).join('')}</div>`);
+    if (r.lessons.length) parts.push(`<h3>Grammatik</h3>${r.lessons.map(l =>
+      `<button class="lesson-link" data-act="lesson" data-v="${esc(l.key)}">${icon('book', 20)}<span>${esc(l.title)}</span></button>`).join('')}`);
+    if (r.words.length) parts.push(`<h3>Nützliche Wörter</h3><div class="word-list">${r.words.map(wordRow).join('')}</div>`);
+    if (r.sentences.length) parts.push(`<h3>Beispielsätze</h3><div class="sent-list">${r.sentences.map(s => `
+      <div class="sent-row"><span class="grow"><b>${esc(s.indo)}</b><span class="muted">${esc(s.de)}</span></span>
+        <button class="speak-btn" data-say="${esc(s.indo)}" aria-label="Vorlesen">${icon('speaker', 20)}</button></div>`).join('')}</div>`);
+    if (!parts.length) parts.push(`<p>Dazu habe ich leider nichts Passendes gefunden.</p>
+      <p class="muted small">Versuch es mit anderen Wörtern – z. B. „Arzt“, „Wohnung mieten“, „Rechnung“ oder einem indonesischen Wort.</p>`);
+    return `<section class="card ask-results">${head}${parts.join('')}</section>`;
+  }
+
+  function viewTalk() {
+    const S = St.S;
+    const hasProfile = !!(S.profile && S.profile.nama);
+    const recent = (S.situations || []).slice(-6).reverse().map(s => s.q);
+    const byUnit = (a, b) => unitOf(a).index - unitOf(b).index;
+    const groups = window.DIALOG_GROUPS.map(g => {
+      const list = window.DIALOGS.filter(d => d.group === g.key).sort(byUnit);
+      return `
+        <section class="card">
+          <h3>${esc(g.icon)} ${esc(g.title)}</h3>
+          <div class="dlg-list">${list.map(dialogRow).join('')}</div>
+        </section>`;
+    }).join('');
+    return `
+      <header class="topbar"><h1>Gespräche</h1><button class="icon-btn" data-act="profile" aria-label="Über mich">${icon('user', 24)}</button></header>
+      ${hasProfile || S.ui.profileHidden ? '' : `
+      <section class="card profile-callout">
+        <b>Erzähl der App von dir 👤</b>
+        <p class="muted small">Name, Herkunft, Beruf, Hobby – dann drehen sich die Gespräche um <i>dein</i> Leben. Alles bleibt nur auf deinem Handy.</p>
+        <div class="btn-row"><button class="btn primary sm" data-act="profile">Über mich ausfüllen</button><button class="btn ghost sm" data-act="hide" data-v="profileHidden">Später</button></div>
+      </section>`}
+      <section class="card ask">
+        <h3>Was möchtest du üben oder wissen?</h3>
+        <p class="muted small">Schildere eine Situation oder stell eine Frage – die App stellt dir passende Gespräche, Wörter, Sätze und Grammatik zusammen.</p>
+        <form class="ask-form" id="ask-form" autocomplete="off">
+          <textarea name="q" rows="2" placeholder="z. B. Im Restaurant kam das falsche Essen – wie beschwere ich mich?" aria-label="Situation oder Frage">${esc(ask.q)}</textarea>
+          <div class="ask-actions">
+            ${Listen.supported ? `<button type="button" class="icon-btn mic" data-mic aria-label="Auf Deutsch sprechen">${icon('mic', 22)}</button>` : ''}
+            <button class="btn primary grow" type="submit">Zusammenstellen</button>
+          </div>
+        </form>
+        <div class="field-label">${recent.length ? 'Zuletzt & Beispiele' : 'Zum Beispiel'}</div>
+        <div class="chips wrap">${recent.concat(ASK_EXAMPLES.filter(q => !recent.includes(q))).slice(0, Math.max(5, recent.length))
+          .map(q => `<button class="chip-btn${recent.includes(q) ? ' recent' : ''}" data-act="ask" data-v="${esc(q)}">${recent.includes(q) ? '🕘 ' : ''}${esc(q)}</button>`).join('')}</div>
+      </section>
+      <div id="ask-results">${askResultsHTML()}</div>
+      <section class="card">
+        <h3>Für dich empfohlen</h3>
+        <div class="dlg-list">${Talk.recommend(3).map(dialogRow).join('')}</div>
+      </section>
+      ${groups}
+      <section class="card">
+        <details>
+          <summary><b>So funktioniert der Gesprächstrainer</b></summary>
+          <div class="method">
+            <p><b>Gespräche nachspielen:</b> Dein Gegenüber spricht (🔊), du antwortest auf Indonesisch – tippen oder mit 🎤 sprechen. Es gibt nicht nur eine richtige Antwort: Die App achtet auf die wichtigen Wörter und ist bei kleinen Tippfehlern großzügig.</p>
+            <p><b>Hilfe, wenn du hängst:</b> Unten gibt es einen Tipp, eine Auswahl oder die Lösung. Tippe auf einen Satz deines Gegenübers, um die Übersetzung zu sehen – oder schalte oben „DE“ ein.</p>
+            <p><b>Freihand-Modus 🎧:</b> Die App hört nach jedem Satz automatisch zu – wie ein echtes Gespräch, ganz ohne Tippen.</p>
+            <p><b>Am Ende:</b> Du siehst, was gut lief, und kannst neue Wörter und schwierige Sätze mit einem Tipp in den Vokabeltrainer übernehmen.</p>
+            <p><b>Über mich:</b> Deine Angaben (Name, Herkunft, Beruf …) werden in die Gespräche eingesetzt. Und was du oben schilderst, merkt sich die App für ihre Empfehlungen.</p>
+          </div>
+        </details>
+      </section>`;
+  }
+
+  function bindTalk() {
+    const form = app.querySelector('#ask-form');
+    if (!form) return;
+    const ta = form.q;
+    ta.oninput = () => { ask.q = ta.value; };
+    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runAsk(ta.value); } };
+    form.onsubmit = e => { e.preventDefault(); runAsk(ta.value); };
+    const mic = form.querySelector('[data-mic]');
+    if (mic) mic.onclick = () => {
+      if (mic.classList.contains('listening')) { Listen.stop(); return; }
+      const before = ta.value;
+      mic.classList.add('listening');
+      Listen.start({
+        lang: 'de-DE',
+        onInterim: t => { if (t) ta.value = t; },
+        onEnd: alts => {
+          mic.classList.remove('listening');
+          if (alts[0]) runAsk(alts[0]);
+          else if (!ta.value.trim()) ta.value = before;
+        },
+        onError: code => {
+          mic.classList.remove('listening');
+          toast(code === 'not-allowed' || code === 'service-not-allowed' ? 'Bitte erlaube der App den Zugriff aufs Mikrofon.'
+            : code === 'no-speech' ? 'Ich habe nichts gehört – nochmal?' : 'Spracherkennung gerade nicht möglich – bitte tippen.');
+        },
+      });
+    };
+  }
+
+  function runAsk(q) {
+    q = (q || '').trim();
+    if (!q) { toast('Schreib zuerst, was du üben oder wissen möchtest.'); return; }
+    Listen.stop();
+    const res = Talk.search(q);
+    ask = { q, res };
+    // Geschilderte Situationen merken – sie fließen in die Empfehlungen ein
+    if (res && (res.dialogs.length || res.words.length || res.lessons.length)) {
+      const S = St.S;
+      S.situations = (S.situations || []).filter(s => St.norm(s.q) !== St.norm(q));
+      S.situations.push({ q, ts: Date.now() });
+      if (S.situations.length > 20) S.situations = S.situations.slice(-20);
+      St.save();
+    }
+    render(true);
+    const el = document.getElementById('ask-results');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // „Über mich“ – wird in die Gespräche eingesetzt (bleibt nur auf dem Gerät)
+  function profileSheet(done) {
+    const P = St.S.profile || {};
+    const O = Talk.OPTIONS;
+    const label = de => de.replace(/^der /, '').replace(/^den Niederlanden$/, 'Niederlande');
+    const select = (name, list, val) => {
+      const known = !val || list.some(([v]) => v === val);
+      return `<select name="${name}">
+        <option value="" ${val ? '' : 'selected'}>– bitte wählen –</option>
+        ${list.map(([v, de]) => `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(label(de))}${v.toLowerCase() === label(de).toLowerCase() ? '' : ` – ${esc(v)}`}</option>`).join('')}
+        <option value="__other" ${known ? '' : 'selected'}>Anderes …</option>
+      </select>
+      <input name="${name}Other" value="${known ? '' : esc(val)}" placeholder="auf Indonesisch oder Deutsch" ${known ? 'hidden' : ''}>`;
+    };
+    let anrede = P.anrede || '';
+    openSheet(`
+      <div class="sheet-head"><h2>👤 Über mich</h2>${closeBtn()}</div>
+      <p class="muted">Diese Angaben setzt die App in die Gespräche ein – so übst du Sätze über <i>dein</i> Leben. Alles ist freiwillig und bleibt nur auf diesem Handy.</p>
+      <form class="form" id="profile-form" autocomplete="off" novalidate>
+        <label>Dein Vorname<input name="nama" value="${esc(P.nama || '')}" placeholder="Vorname" autocapitalize="words"></label>
+        <div>
+          <div class="field-label">Wie sprechen dich Leute an?</div>
+          <div class="seg">${O.anrede.map(([v, de]) => `<button type="button" class="seg-btn${anrede === v ? ' active' : ''}" data-anrede="${v}">${esc(de.split(' – ')[0])}</button>`).join('')}</div>
+          <p class="muted small anrede-hint">${esc((O.anrede.find(a => a[0] === anrede) || O.anrede[2])[1])}</p>
+        </div>
+        <label>Woher kommst du?${select('asal', O.asal, P.asal)}</label>
+        <label>Wo bist du in Indonesien?<input name="kota" value="${esc(P.kota || '')}" placeholder="z. B. Bali, Ubud, Jakarta" autocapitalize="words"></label>
+        <label>Was arbeitest du?${select('kerja', O.kerja, P.kerja)}</label>
+        <label>Dein liebstes Hobby${select('hobi', O.hobi, P.hobi)}</label>
+        <div>
+          <div class="field-label">Partner(in) <small>– optional, für Gespräche über Familie</small></div>
+          <div class="two-col">
+            <input name="pasangan" value="${esc(P.pasangan || '')}" placeholder="Name" autocapitalize="words" aria-label="Name">
+            <select name="pasanganRel" aria-label="Beziehung">${O.pasanganRel.map(([v, de]) => `<option value="${v}" ${v === (P.pasanganRel || 'pacar') ? 'selected' : ''}>${esc(de)} – ${v}</option>`).join('')}</select>
+          </div>
+        </div>
+        <button class="btn primary block" type="submit">Speichern</button>
+      </form>`, sheet => {
+      const form = sheet.querySelector('#profile-form');
+      sheet.querySelectorAll('[data-anrede]').forEach(b => {
+        b.onclick = () => {
+          anrede = b.dataset.anrede;
+          sheet.querySelectorAll('[data-anrede]').forEach(x => x.classList.toggle('active', x === b));
+          sheet.querySelector('.anrede-hint').textContent = O.anrede.find(a => a[0] === anrede)[1];
+        };
+      });
+      ['asal', 'kerja', 'hobi'].forEach(n => {
+        form[n].onchange = () => {
+          const other = form[n + 'Other'];
+          other.hidden = form[n].value !== '__other';
+          if (!other.hidden) other.focus();
+        };
+      });
+      form.onsubmit = e => {
+        e.preventDefault();
+        const val = n => form[n].value.trim();
+        const pickVal = (n, list) => {
+          const v = val(n);
+          if (v === '__other') { const o = val(n + 'Other'); return [o, o]; }
+          const hit = list.find(([x]) => x === v);
+          return hit ? hit : ['', ''];
+        };
+        const [asal, asalDe] = pickVal('asal', O.asal);
+        const [kerja, kerjaDe] = pickVal('kerja', O.kerja);
+        const [hobi, hobiDe] = pickVal('hobi', O.hobi);
+        const [pasanganRel, pasanganRelDe] = pickVal('pasanganRel', O.pasanganRel);
+        St.S.profile = {
+          nama: val('nama'), anrede, asal, asalDe, kota: val('kota'), kerja, kerjaDe, hobi, hobiDe,
+          pasangan: val('pasangan'), pasanganRel, pasanganRelDe,
+        };
+        St.save();
+        closeSheet();
+        toast('Gespeichert – die Gespräche nutzen jetzt deine Angaben.');
+        if (done) done(); else render(true);
+      };
+    });
+  }
+
+  function startDialog(id) {
+    const d = (window.DIALOGS || []).find(x => x.id === id);
+    if (!d) return;
+    enterSession(root => new Talk.DialogRunner(root, {
+      dialog: d,
+      onExit: () => { exitSession(); render(); },
+      onProfile: cb => profileSheet(cb),
+    }));
+  }
+
   // ---------- Statistik ----------
   const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   function viewStats() {
@@ -484,7 +774,7 @@
     const total = buckets.reduce((a, b) => a + b, 0) || 1;
 
     return `
-      <header class="topbar"><h1>Statistik</h1></header>
+      <header class="topbar"><button class="icon-btn" data-act="back" aria-label="Zurück">${icon('back', 26)}</button><h1>Statistik</h1><span></span></header>
       <section class="stat-grid">
         <div class="tile-stat"><b>${St.streak()}</b><span>Tage Serie</span></div>
         <div class="tile-stat"><b>${vc.words}</b><span>Wörter</span></div>
@@ -926,7 +1216,7 @@
     if (ignorePop) { ignorePop--; return; }
     if (document.querySelector('.sheet-backdrop')) { closeSheet(true); return; }
     if (session) { history.pushState({ v: 'session' }, ''); session.quit(); return; }
-    if (tab === 'settings') { tab = 'home'; render(); }
+    if (SUBPAGES.includes(tab)) { tab = 'home'; render(); }
   });
 
   // ---------- Aktionen ----------
@@ -941,7 +1231,11 @@
     const S = St.S;
     switch (a.dataset.act) {
       case 'tab': go(v); break;
-      case 'back': if (history.state && history.state.v === 'settings') history.back(); else { tab = 'home'; render(); } break;
+      case 'back': if (history.state && SUBPAGES.includes(history.state.v)) history.back(); else { tab = 'home'; render(); } break;
+      case 'dialog': startDialog(v); break;
+      case 'profile': profileSheet(); break;
+      case 'ask': ask.q = v; runAsk(v); break;
+      case 'ask-clear': ask = { q: '', res: undefined }; render(true); break;
       case 'start': startSession(); break;
       case 'more': St.addExtraNew(5); startSession(); break;
       case 'trainer': startTrainer('due'); break;

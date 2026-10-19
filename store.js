@@ -49,7 +49,7 @@
     while (si < sents.length) ids.push(sents[si++].id);
     words.concat(sents).forEach(c => { CARDS[c.id] = c; });
     ORDER.push(...ids);
-    UNITS.push({ index: ui, key: u.key, title: u.title, icon: u.icon, lesson: u.lesson || null, ids });
+    UNITS.push({ index: ui, key: u.key, level: u.level || 1, title: u.title, icon: u.icon, lesson: u.lesson || null, ids });
   });
   const CUSTOM = -1; // „Einheit" für eigene Wörter
 
@@ -70,10 +70,14 @@
       minutes: 15, newMode: 'auto', newFixed: 10,
       colloquial: true, autoplay: true, typing: true,
       rate: 0.9, voice: '', reminder: '19:00',
+      handsFree: false, dialogDe: false,
     },
     learner: { m: 1, base: 10 },
     cards: {}, days: {}, lessons: {}, custom: [], log: [],
     pull: [], // Kurswörter, die vorzeitig in den Vokabeltrainer geholt wurden
+    profile: {},     // „Über mich“ – wird in die Gespräche eingesetzt
+    dialogs: {},     // Ergebnisse im Gesprächstrainer: id → {n, best, last, ts}
+    situations: [],  // geschilderte Situationen / Fragen: [{q, ts}]
     plan: null,
     ui: {},
   });
@@ -357,9 +361,17 @@
   function level(words) {
     if (words < 80) return { code: 'A0', name: 'Einstieg' };
     if (words < 300) return { code: 'A1', name: 'Grundlagen' };
-    if (words < 600) return { code: 'A2', name: 'Alltag' };
-    if (words < 900) return { code: 'B1', name: 'Selbstständig' };
-    return { code: 'B1+', name: 'Kurs abgeschlossen' };
+    if (words < 700) return { code: 'A2', name: 'Alltag' };
+    if (words < 1200) return { code: 'B1', name: 'Selbstständig' };
+    if (words < 1650) return { code: 'B1+', name: 'Fortgeschritten' };
+    return { code: 'B2', name: 'Sicher unterwegs' };
+  }
+
+  // Fortschritt pro Level (1 = Grundlagen, 2 = Fortgeschritten)
+  function levelProgress(lv) {
+    let done = 0, total = 0;
+    UNITS.filter(u => u.level === lv).forEach(u => { total += u.ids.length; done += u.ids.filter(id => S.cards[id]).length; });
+    return { done, total };
   }
 
   function exportData() { return JSON.stringify(S); }
@@ -383,7 +395,7 @@
     currentUnit, unitProgress,
     avgSecs, recentAccuracy, plan, planInfo, addExtraNew, baseForMinutes,
     introduce, graduate, markKnown, applyReview, reapplyReview, resetCard, weakWordIds,
-    streak, strength, vocabCount, level,
+    streak, strength, vocabCount, level, levelProgress,
     exportData, importData, resetAll,
   };
 })();

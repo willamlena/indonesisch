@@ -3,12 +3,14 @@
 Offline-Web-App (PWA) zum täglichen Indonesisch-Lernen für Deutschsprachige.
 Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 
-- **1.153 Lernkarten:** 934 Wörter/Ausdrücke und 219 Übungssätze in 44 Themen, vom Häufigsten zum Spezielleren
-- **Lektionen:** neue Wörter, 31 Grammatik-Lektionen mit Mini-Quiz, Übungssätze – 9 Übungstypen (Hören, Eintippen, Lückentext, Sätze bauen …)
+- **Zwei Levels mit rund 2.150 Lernkarten:** Level 1 – Grundlagen (44 Themen, A1–A2) und Level 2 – Fortgeschritten (40 Themen, B1–B2: Leben in Indonesien, Beruf & Geschäft, Umgangssprache, Meinungen). Level 2 startet automatisch nach Level 1.
+- **Lektionen:** neue Wörter, 64 Grammatik-Lektionen mit Mini-Quiz, Übungssätze – 9 Übungstypen (Hören, Eintippen, Lückentext, Sätze bauen …)
 - **Vokabeltrainer:** Alle gelernten Wörter als Karteikarten, abwechselnd in beide Richtungen, in Runden à 20 Karten. Gekonnte Karten kommen seltener, vergessene öfter (FSRS).
 - **Beispielsätze passend zum Lernstand:** Zu jeder Karte der Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter lassen sich antippen und übersetzen.
 - **Eigene Vokabeln** mit Wortart: Die App baut Beispielsätze nur aus bereits gelernten Wörtern. Kurswörter aus späteren Lektionen lassen sich vorziehen.
 - **Passt sich an:** Ein persönlicher Gedächtnis-Faktor stellt die Abstände ein. Die Zahl neuer Wörter pro Tag richtet sich nach Trefferquote und Tageszeit.
+- **Gesprächstrainer (offline):** 25 Alltagsgespräche zum Nachspielen, z. B. falsches Essen reklamieren, beim Arzt oder mit dem Vermieter. Du antwortest per Tippen oder Sprechen, Freihand-Modus inklusive. Hilfe gibt es als Tipp, Auswahl oder Lösung, am Ende eine Auswertung.
+- **„Über mich“ und „Situation schildern“:** Deine Angaben fließen in die Gespräche ein. Beschreibst du eine Situation oder stellst eine Frage, stellt die App passende Gespräche, Wörter, Sätze und Grammatik zusammen.
 - **Standardsprache mit Alltagsform** (tidak → nggak), Vorlesen über die Sprachausgabe des Handys
 
 ---
@@ -44,11 +46,12 @@ Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 
 ## Inhalte erweitern
 
-- **Wörter und Sätze:** `vocab.js`, eine Zeile pro Karte:
+- **Wörter und Sätze:** `vocab.js` (Level 1) bzw. `vocab2.js` (Level 2), eine Zeile pro Karte:
   `indonesisch | deutsch | alltagsform | beispiel | übersetzung | hinweis`
   Sätze beginnen mit `>`: `> indonesisch | deutsch | hinweis`
   Neue Einheiten einfach hinten anhängen. Bereits gelernte Karten bleiben erhalten, solange der indonesische Text gleich bleibt.
-- **Grammatik:** `grammar.js` (kleines Markup, Beschreibung oben in der Datei)
+- **Grammatik:** `grammar.js` / `grammar2.js` (kleines Markup, Beschreibung oben in der Datei)
+- **Gespräche:** `dialogs.js` (Format oben in der Datei beschrieben)
 - **Eigene Wörter** lassen sich auch direkt in der App hinzufügen (Wörter → **+**).
 
 ## Dateien
@@ -56,14 +59,16 @@ Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 | Datei | Inhalt |
 | --- | --- |
 | `index.html`, `style.css` | Seite und Design |
-| `vocab.js`, `grammar.js` | Kursinhalt |
+| `vocab.js`, `vocab2.js`, `grammar.js`, `grammar2.js` | Kursinhalt Level 1 und 2 |
+| `dialogs.js` | Gespräche für den Gesprächstrainer |
+| `talk.js` | Gesprächstrainer, Antwortprüfung, Suche „Situation schildern“ |
 | `srs.js` | Wiederholungs-Algorithmus (FSRS-4.5 + persönlicher Gedächtnis-Faktor) |
 | `store.js` | Lernstand, Tagesplanung, Anpassung ans Tempo |
 | `session.js` | Lektion und Übungstypen |
 | `trainer.js` | Vokabeltrainer (Karteikarten) |
 | `examples.js` | Beispielsätze passend zum Lernstand, Satzbausteine für eigene Wörter, Nachschlagen |
-| `app.js` | Ansichten: Heute, Kurs, Trainer, Wörter, Statistik, Einstellungen |
-| `util.js` | Hilfsfunktionen, Sprachausgabe, Icons |
+| `app.js` | Ansichten: Heute, Kurs, Trainer, Gespräche, Wörter, Statistik, Einstellungen |
+| `util.js` | Hilfsfunktionen, Sprachausgabe, Spracherkennung, Icons |
 | `sw.js`, `manifest.webmanifest`, `icon*` | Offline-Fähigkeit und Installation |
 
 ## Lokal testen (Mac)

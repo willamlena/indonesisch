@@ -263,13 +263,16 @@
 
   // Klick auf ein Wort im Satz: vorlesen und Übersetzung einblenden
   function onTokenClick(el) {
-    const box = el.closest('.fc-example');
-    if (!box) return;
+    const box = el.closest('.fc-example, .bubble');
+    if (!box || !box.querySelector('.tok-info')) return;
     window.U.Speech.speak(el.dataset.tok);
     box.querySelectorAll('.tok.active').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
     box.querySelector('.tok-info').innerHTML = infoHTML(el.dataset.tok);
   }
 
-  window.Examples = { forCard, html, blockHTML, onTokenClick, lookup, known, TEMPLATES, POS_LABEL };
+  // Beliebigen Satz zerlegen (z. B. im Gesprächstrainer), unbekannte Wörter markiert
+  const analyseText = text => analyse(text, [], known());
+
+  window.Examples = { forCard, html, blockHTML, onTokenClick, lookup, known, analyseText, TEMPLATES, POS_LABEL };
 })();
