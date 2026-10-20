@@ -236,7 +236,7 @@
         <details>
           <summary><b>So funktioniert der Trainer</b></summary>
           <div class="method">
-            <p><b>Karteikarten:</b> Schau dir die Vorderseite an, sag die Antwort laut und dreh die Karte um. Dann bewertest du dich ehrlich: <i>Nochmal</i>, <i>Schwer</i>, <i>Gut</i> oder <i>Leicht</i>. Unter jedem Knopf siehst du, wann die Karte wiederkommt.</p>
+            <p><b>Karteikarten:</b> Schau dir die Vorderseite an, sag die Antwort laut und dreh die Karte um. Dann wischst du sie <b>nach rechts</b>, wenn du es gewusst hast, oder <b>nach links</b>, wenn nicht. Alternativ tippst du auf die Knöpfe darunter.</p>
             <p><b>Beide Richtungen:</b> Mal siehst du das indonesische Wort, mal das deutsche – so lernst du verstehen <i>und</i> selbst sprechen.</p>
             <p><b>Automatisch befüllt:</b> Jedes Wort aus den Lektionen landet hier. Gekonnte Wörter kommen in immer größeren Abständen, vergessene schon bald wieder.</p>
             <p><b>Passende Beispielsätze:</b> Zu jeder Karte zeigt die App den Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter sind unterstrichen – antippen zeigt die Übersetzung.</p>
@@ -787,7 +787,7 @@
       <section class="card">
         <h3>Behaltensquote (30 Tage)</h3>
         <div class="big-num">${r30 ? Math.round(ok30 / r30 * 100) + ' %' : '–'}</div>
-        <p class="muted small">Anteil der Wiederholungen, die du gewusst hast. Ziel: rund 90 % – genug Erfolg, aber trotzdem fordernd.</p>
+        <p class="muted small">Anteil der Wiederholungen, die du gewusst hast. Ziel: über 90 % – die App wiederholt lieber etwas öfter, damit nichts verloren geht.</p>
       </section>
 
       <section class="card">
@@ -916,7 +916,7 @@
             <p><b>Aktives Erinnern:</b> Statt nur zu lesen, holst du die Antwort selbst aus dem Gedächtnis – vom Wiedererkennen über Hören bis zum Eintippen und Sätze-Bauen. Je sicherer ein Wort sitzt, desto schwieriger die Übung.</p>
             <p><b>Anpassung an dich:</b> Die App vergleicht, wie oft du dich erinnerst, mit der Vorhersage, und stellt die Abstände für dich persönlich ein. Die Zahl neuer Wörter richtet sich nach deiner Trefferquote und deiner Tageszeit.</p>
             <p><b>Häufigstes zuerst:</b> Der Kurs beginnt mit den Wörtern und Sätzen, die man im Alltag am meisten braucht. Die Grammatik kommt in kleinen Portionen, genau dann, wenn sie im Kurs auftaucht.</p>
-            <p><b>Tipps:</b> Lerne jeden Tag, lieber kurz als selten lang. Sprich alles laut nach. Bewerte dich ehrlich. Und nutze das Gelernte – schreib Freunden auf Indonesisch!</p>
+            <p><b>Tipps:</b> Lerne jeden Tag, lieber kurz als selten lang. Sprich alles laut nach. Sei ehrlich beim Wischen. Und nutze das Gelernte – schreib Freunden auf Indonesisch!</p>
           </div>
         </details>
       </section>

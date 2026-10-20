@@ -1,7 +1,7 @@
 // Vokabeltrainer: klassische Karteikarten in Runden à 20 Karten.
-// Fragt abwechselnd Indonesisch → Deutsch und Deutsch → Indonesisch ab. Du bewertest dich
-// selbst; gut gekonnte Karten kommen seltener, vergessene öfter (gemeinsames Gedächtnis
-// mit den Lektionen). Neue eigene Wörter werden kurz vorgestellt und dann zweimal geübt.
+// Fragt abwechselnd Indonesisch → Deutsch und Deutsch → Indonesisch ab. Karte umdrehen, dann
+// nach rechts wischen = gewusst, nach links = nicht gewusst. Gewusste Karten kommen seltener,
+// vergessene öfter (gemeinsames Gedächtnis mit den Lektionen). Neue eigene Wörter werden kurz vorgestellt und dann zweimal geübt.
 (function () {
   const { esc, shuffle, Speech, icon } = window.U;
   const St = window.Store;
@@ -11,15 +11,6 @@
 
   const speakBtn = (text, cls) =>
     `<button class="speak-btn ${cls || ''}" data-say="${esc(text)}" aria-label="Vorlesen">${icon('speaker', cls === 'lg' ? 30 : cls === 'sm' ? 16 : 20)}</button>`;
-
-  function fmtDays(n) {
-    if (n <= 0) return 'gleich';
-    if (n === 1) return '1 Tag';
-    if (n < 14) return `${n} Tage`;
-    if (n < 60) return `${Math.round(n / 7)} Wo.`;
-    if (n < 365) return `${Math.round(n / 30)} Mon.`;
-    return `${(n / 365).toFixed(1).replace('.', ',')} J.`;
-  }
 
   const exampleHTML = ex => Ex.blockHTML(ex);
 
@@ -124,8 +115,8 @@
       if ((e.key === ' ' || e.key === 'Enter') && this.awaitNext) {
         e.preventDefault();
         this.awaitNext();
-      } else if (/^[1-4]$/.test(e.key)) {
-        const b = this.foot.querySelector(`[data-g="${e.key}"]`);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        const b = this.foot.querySelector(`[data-g="${e.key === "ArrowRight" ? 3 : 1}"]`);
         if (b) { e.preventDefault(); b.click(); }
       }
     }
@@ -210,6 +201,7 @@
           <span class="chip soft">${label}</span>
         </div>
         <div class="fc fc-card">
+          <div class="stamp yes">Gewusst</div><div class="stamp no">Nicht gewusst</div>
           ${front}
           <div class="fc-back" hidden>
             ${back}
@@ -218,6 +210,7 @@
             ${exampleHTML(Ex.forCard(card))}
           </div>
         </div>`;
+      this.answered = false;
       this.foot.innerHTML = `<button class="btn primary block big" data-s="reveal">Umdrehen</button>`;
       if (dir === 'id' && set.autoplay) setTimeout(() => Speech.speak(card.indo), 200);
       const reveal = () => {
@@ -233,32 +226,64 @@
       this.body.querySelector('.fc-card').addEventListener('click', e => { if (!e.target.closest('button')) reveal(); });
     }
 
+    // Nach dem Umdrehen: nach rechts wischen = gewusst, nach links = nicht gewusst (oder die Knöpfe)
     showGrades(card, task) {
-      const st = St.S.cards[card.id];
-      const m = St.S.learner.m;
-      let hints = ['nochmal', '', '', ''];
-      if (task.phase === 'review') {
-        hints = [1, 2, 3, 4].map(g => fmtDays(Srs.previewInterval(st, g, Date.now(), m)));
-      } else if (task.phase === 'learn') {
-        const err = st.err || 0;
-        const errGrade = err >= 2 ? 1 : err === 1 ? 2 : 3;
-        const last = (task.step || 0) >= 1 || err >= 3;
-        hints = [
-          'gleich',
-          last ? fmtDays(Srs.startInterval(Math.min(errGrade, 2), m)) : 'gleich',
-          last ? fmtDays(Srs.startInterval(errGrade, m)) : 'gleich',
-          err ? (last ? fmtDays(Srs.startInterval(errGrade, m)) : 'gleich') : fmtDays(Srs.startInterval(4, m)),
-        ];
-      }
-      const names = [['Nochmal', 'g1'], ['Schwer', 'g2'], ['Gut', 'g3'], ['Leicht', 'g4']];
       this.foot.innerHTML = `
-        <div class="grade-row">${names.map(([l, c], i) =>
-          `<button class="btn grade ${c}" data-g="${i + 1}">${l}<small>${hints[i] || '&nbsp;'}</small></button>`).join('')}
+        <p class="swipe-hint">← nicht gewusst · wischen · gewusst →</p>
+        <div class="known-row">
+          <button class="btn known-no" data-g="1">${icon("x", 20)} Nicht gewusst</button>
+          <button class="btn known-yes" data-g="3">${icon("check", 20)} Gewusst</button>
         </div>`;
       this.awaitNext = null;
-      this.foot.querySelectorAll('[data-g]').forEach(b => {
-        b.onclick = () => this.grade(card, task, +b.dataset.g);
+      this.foot.querySelectorAll("[data-g]").forEach(b => {
+        b.onclick = () => this.answer(card, task, +b.dataset.g);
       });
+      this.enableSwipe(card, task);
+    }
+
+    enableSwipe(card, task) {
+      const el = this.body.querySelector(".fc-card");
+      let x0 = null, y0 = 0, dx = 0, pid = null, horizontal = false, t0 = 0;
+      const reset = () => { el.style.transform = ""; el.classList.remove("lean-yes", "lean-no", "dragging"); };
+      el.onpointerdown = e => {
+        if (this.answered || e.target.closest("button")) return;
+        x0 = e.clientX; y0 = e.clientY; dx = 0; pid = e.pointerId; horizontal = false; t0 = Date.now();
+      };
+      el.onpointermove = e => {
+        if (x0 === null || e.pointerId !== pid) return;
+        dx = e.clientX - x0;
+        if (!horizontal) {
+          if (Math.abs(e.clientY - y0) > 12 && Math.abs(e.clientY - y0) > Math.abs(dx)) { x0 = null; return; } // senkrecht = scrollen
+          if (Math.abs(dx) < 10) return;
+          horizontal = true;
+          el.classList.add("dragging");
+          try { el.setPointerCapture(pid); } catch (err) { /* egal */ }
+        }
+        el.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+        el.classList.toggle("lean-yes", dx > 50);
+        el.classList.toggle("lean-no", dx < -50);
+      };
+      const end = () => {
+        if (x0 === null) return;
+        x0 = null;
+        // weit genug gezogen – oder kurz und schnell geschnippt
+      const far = Math.abs(dx) > Math.min(90, el.offsetWidth * 0.25);
+      const flick = Math.abs(dx) > 40 && Math.abs(dx) / Math.max(1, Date.now() - t0) > 0.5;
+      if (horizontal && (far || flick)) this.answer(card, task, dx > 0 ? 3 : 1);
+        else reset();
+      };
+      el.onpointerup = end;
+      el.onpointercancel = () => { x0 = null; reset(); };
+    }
+
+    // Karte wegfliegen lassen, dann werten
+    answer(card, task, g) {
+      if (this.answered) return;
+      this.answered = true;
+      const el = this.body.querySelector(".fc-card");
+      el.classList.remove("dragging");
+      el.classList.add(g > 1 ? "fly-right" : "fly-left");
+          setTimeout(() => this.grade(card, task, g), 260);
     }
 
     grade(card, task, g) {

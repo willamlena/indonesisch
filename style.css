@@ -661,6 +661,33 @@ body.in-session { overflow: hidden; }
 .summary .wrong-list .btn { margin-top: 10px; }
 .summary > .btn { margin-bottom: 12px; }
 
+/* ---------- Auswählen & bestätigen ---------- */
+.opt.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.check-btn { margin-top: 2px; }
+.choice-check { margin-top: 8px; }
+.choice-check .btn.big { min-height: 48px; font-size: 16px; }
+
+/* ---------- Gewusst / nicht gewusst (Trainer & Lektion) ---------- */
+.known-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.known-row .btn { min-height: 58px; font-size: 16px; padding: 0 8px; gap: 6px; white-space: nowrap; }
+.known-no { background: var(--bad-soft); color: var(--bad); }
+.known-yes { background: var(--ok-soft); color: var(--ok); }
+.swipe-hint { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.fc-card { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: transform .25s ease, opacity .25s ease; }
+.fc-card.dragging { transition: none; }
+.fc-card.fly-right { transform: translateX(120%) rotate(14deg) !important; opacity: 0; }
+.fc-card.fly-left { transform: translateX(-120%) rotate(-14deg) !important; opacity: 0; }
+.stamp {
+  position: absolute; top: 14px; padding: 4px 10px; border-radius: 10px; border: 3px solid; font-weight: 800;
+  font-size: 15px; text-transform: uppercase; letter-spacing: .04em; opacity: 0; transition: opacity .12s; pointer-events: none; z-index: 2;
+}
+.stamp.yes { left: 14px; color: var(--ok); border-color: var(--ok); background: var(--ok-soft); transform: rotate(-8deg); }
+.stamp.no { right: 14px; color: var(--bad); border-color: var(--bad); background: var(--bad-soft); transform: rotate(8deg); }
+.fc-card.lean-yes .stamp.yes, .fc-card.fly-right .stamp.yes { opacity: 1; }
+.fc-card.lean-no .stamp.no, .fc-card.fly-left .stamp.no { opacity: 1; }
+.fc-card.lean-yes { box-shadow: 0 0 0 3px var(--ok); }
+.fc-card.lean-no { box-shadow: 0 0 0 3px var(--bad); }
+
 /* ---------- Toast ---------- */
 #toast {
   position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 92px); z-index: 80;

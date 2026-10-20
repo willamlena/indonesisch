@@ -2,7 +2,7 @@
 // innerhalb der Sitzung) und Grammatik-Lektionen. Wählt je nach Festigkeit einer
 // Karte passende Übungen – vom Wiedererkennen bis zum freien Eintippen.
 (function () {
-  const { esc, inline, shuffle, pick, norm, lev, escRe, Speech, icon, lessonHTML } = window.U;
+  const { esc, inline, shuffle, pick, norm, lev, escRe, Speech, icon, lessonHTML, selectThenCheck } = window.U;
   const St = window.Store;
 
   const speakBtn = (text, cls) =>
@@ -164,25 +164,25 @@
         <div class="prompt-q">${inline(q)}</div>
         <div class="options">${order.map(k => `<button class="opt" data-k="${k}">${inline(opts[k])}</button>`).join('')}</div>`;
       this.foot.innerHTML = '';
-      this.body.querySelectorAll('.opt').forEach(b => {
-        b.onclick = () => {
-          const k = +b.dataset.k;
-          const ok = k === ans;
-          this.body.querySelectorAll('.opt').forEach(x => {
-            x.disabled = true;
-            if (+x.dataset.k === ans) x.classList.add('right');
-          });
-          if (!ok) b.classList.add('wrong');
-          this.foot.innerHTML = `
-            <div class="fb ${ok ? 'ok' : 'bad'}">
-              <div class="fb-title">${ok ? icon('check') + ' Richtig!' : 'Nicht ganz.'}</div>
-              <div class="fb-text">${inline(why)}</div>
-              <div class="fb-actions"><button class="btn primary" data-s="n">Weiter</button></div>
-            </div>`;
-          this.awaitNext = () => this.lessonQuiz(task, L, i + 1, right + (ok ? 1 : 0));
-          this.foot.querySelector('[data-s="n"]').onclick = this.awaitNext;
-        };
-      });
+      const box = this.body.querySelector('.options');
+      selectThenCheck(box, this.foot, idx => {
+        const b = box.querySelectorAll('.opt')[idx];
+        const k = +b.dataset.k;
+        const ok = k === ans;
+        box.querySelectorAll('.opt').forEach(x => {
+          x.disabled = true;
+          if (+x.dataset.k === ans) x.classList.add('right');
+        });
+        if (!ok) b.classList.add('wrong');
+        this.foot.innerHTML = `
+          <div class="fb ${ok ? 'ok' : 'bad'}">
+            <div class="fb-title">${ok ? icon('check') + ' Richtig!' : 'Nicht ganz.'}</div>
+            <div class="fb-text">${inline(why)}</div>
+            <div class="fb-actions"><button class="btn primary" data-s="n">Weiter</button></div>
+          </div>`;
+        this.awaitNext = () => this.lessonQuiz(task, L, i + 1, right + (ok ? 1 : 0));
+        this.foot.querySelector('[data-s="n"]').onclick = this.awaitNext;
+      }, fn => { this.awaitNext = fn; });
     }
 
     // ---------- Neues Wort / neuer Satz ----------
@@ -318,20 +318,20 @@
     }
 
     // Multiple Choice; options: [{label, ok, say?}]
+    // Antippen wählt nur aus – erst „Prüfen“ wertet (so passieren keine Vertipper)
     renderOptions(options, onPick) {
       const box = this.body.querySelector('.options');
       box.innerHTML = options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o.label)}</button>`).join('');
-      box.querySelectorAll('.opt').forEach(b => {
-        b.onclick = () => {
-          const o = options[+b.dataset.i];
-          box.querySelectorAll('.opt').forEach((x, i) => {
-            x.disabled = true;
-            if (options[i].ok) x.classList.add('right');
-          });
-          if (!o.ok) b.classList.add('wrong');
-          onPick(o.ok ? 3 : 1, o);
-        };
-      });
+      selectThenCheck(box, this.foot, i => {
+        this.awaitNext = null;
+        const o = options[i];
+        box.querySelectorAll('.opt').forEach((x, k) => {
+          x.disabled = true;
+          if (options[k].ok) x.classList.add('right');
+          else if (k === i) x.classList.add('wrong');
+        });
+        onPick(o.ok ? 3 : 1, o);
+      }, fn => { this.awaitNext = fn; });
     }
 
     exMcIdDe(card, task) {
@@ -458,18 +458,16 @@
           <div class="prompt"><div class="${isS ? 'big-sentence' : 'big-word'}">${esc(card.indo)}</div>${speakBtn(card.indo)}</div>
           ${card.ex && !isS ? `<div class="example"><div class="ex-row"><div><div class="ex-id">${esc(card.ex)}</div><div class="ex-de">${esc(card.exde)}</div></div>${speakBtn(card.ex)}</div></div>` : ''}
         </div>
-        <p class="hint">Sprich die Antwort zuerst laut aus – dann aufdecken und ehrlich bewerten.</p>`;
+        <p class="hint">Sprich die Antwort zuerst laut aus – dann aufdecken.</p>`;
       this.foot.innerHTML = `<button class="btn primary block" data-s="reveal">Aufdecken</button>`;
       const reveal = () => {
         this.body.querySelector('.flip-answer').hidden = false;
-        this.body.querySelector('.hint').textContent = 'Wie gut wusstest du es?';
+        this.body.querySelector('.hint').textContent = 'Hast du es gewusst?';
         Speech.speak(card.indo);
         this.foot.innerHTML = `
-          <div class="grade-row">
-            <button class="btn grade g1" data-g="1">Nochmal<small>wusste ich nicht</small></button>
-            <button class="btn grade g2" data-g="2">Schwer<small>mit Mühe</small></button>
-            <button class="btn grade g3" data-g="3">Gut<small>gewusst</small></button>
-            <button class="btn grade g4" data-g="4">Leicht<small>sofort</small></button>
+          <div class="known-row">
+            <button class="btn known-no" data-g="1">${icon('x', 20)} Nicht gewusst</button>
+            <button class="btn known-yes" data-g="3">${icon('check', 20)} Gewusst</button>
           </div>`;
         this.awaitNext = null;
         this.foot.querySelectorAll('[data-g]').forEach(b => {

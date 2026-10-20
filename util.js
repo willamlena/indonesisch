@@ -257,5 +257,30 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
 
-  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast };
+  // Auswahlfragen: Antippen markiert nur, erst „Prüfen“ wertet – so passieren keine Vertipper.
+  // onCheck(index) wertet aus; setEnter(fn) bekommt die Prüf-Funktion (für die Enter-Taste).
+  function selectThenCheck(box, holder, onCheck, setEnter) {
+    const opts = [...box.querySelectorAll(".opt")];
+    let sel = -1;
+    holder.innerHTML = `<button type="button" class="btn primary block big check-btn" data-check disabled>Prüfen</button>`;
+    const btn = holder.querySelector("[data-check]");
+    const check = () => {
+      if (sel < 0 || btn.disabled) return;
+      btn.disabled = true;
+      opts.forEach(x => x.classList.remove("selected"));
+      onCheck(sel);
+    };
+    opts.forEach((b, i) => {
+      b.onclick = () => {
+        if (b.disabled) return;
+        sel = i;
+        opts.forEach(x => x.classList.toggle("selected", x === b));
+        btn.disabled = false;
+        if (setEnter) setEnter(check);
+      };
+    });
+    btn.onclick = check;
+  }
+
+  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast, selectThenCheck };
 })();

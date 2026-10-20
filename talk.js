@@ -2,7 +2,7 @@
 // Tippen oder Sprechen, Freihand-Modus, Auswertung – und die Suche „Situation schildern“,
 // die passende Gespräche, Wörter, Beispielsätze und Grammatik zusammenstellt.
 (function () {
-  const { esc, norm, lev, shuffle, pick, Speech, Listen, icon, toast } = window.U;
+  const { esc, norm, lev, shuffle, pick, Speech, Listen, icon, toast, selectThenCheck } = window.U;
   const St = () => window.Store;
 
   // ---------- Profil ----------
@@ -328,17 +328,20 @@
       const wrong = shuffle(others.filter(o => !right.some(r => r.label === o))).slice(0, Math.max(1, 3 - right.length)).map(l => ({ label: l, ok: false }));
       const opts = shuffle(right.concat(wrong));
       const box = this.foot.querySelector('.help-box');
-      box.innerHTML = `<div class="choice-list">${opts.map((o, i) => `<button type="button" class="opt" data-i="${i}">${esc(o.label)}</button>`).join('')}</div>`;
+      box.innerHTML = `<div class="choice-list">${opts.map((o, i) => `<button type="button" class="opt" data-i="${i}">${esc(o.label)}</button>`).join('')}</div><div class="choice-check"></div>`;
       box.hidden = false;
-      box.querySelectorAll('.opt').forEach(b => {
-        b.onclick = () => {
-          const o = opts[+b.dataset.i];
-          if (o.ok) { this.submit(o.label, []); return; }
-          b.classList.add('wrong');
-          b.disabled = true;
-          toast('Das passt hier nicht – versuch es noch einmal.');
-        };
+      // Antippen markiert nur – erst „Prüfen“ wertet
+      const list = box.querySelector('.choice-list');
+      const arm = () => selectThenCheck(list, box.querySelector('.choice-check'), i => {
+        const o = opts[i];
+        if (o.ok) { this.submit(o.label, []); return; }
+        const b = list.querySelectorAll('.opt')[i];
+        b.classList.add('wrong');
+        b.disabled = true;
+        toast('Das passt hier nicht – versuch es noch einmal.');
+        arm();
       });
+      arm();
     }
 
     submit(text, alts) {

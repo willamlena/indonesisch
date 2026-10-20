@@ -10,9 +10,9 @@
     0.1367, 1.0461, 2.1072, 0.0793, 0.3246, 1.587, 0.2272, 2.8755];
   const DECAY = -0.5;
   const FACTOR = Math.pow(0.9, 1 / DECAY) - 1; // = 19/81
-  const TARGET = 0.9;                          // angestrebte Erinnerungsquote
+  const TARGET = 0.93;                         // angestrebte Erinnerungsquote – hoch, damit Karten öfter kommen
   const DAY = 86400000;
-  const MAX_INTERVAL = 365;
+  const MAX_INTERVAL = 180;                    // spätestens nach einem halben Jahr wieder
 
   // Startstabilität (Tage) für frisch gelernte Karten, je nach Note.
   // Bewusst kürzer als die FSRS-Vorgabe: neue Wörter sollen bald wiederkommen.
@@ -79,7 +79,7 @@
   }
 
   // Gedächtnis-Faktor nachführen: kleine Schritte Richtung „Vorhersage = Realität".
-  // Im Gleichgewicht vergisst du genau so viel, wie angestrebt (10 %).
+  // Im Gleichgewicht vergisst du genau so viel, wie angestrebt (7 %).
   function updateMemoryFactor(m, recalled, r) {
     return clamp(m * Math.exp(0.06 * ((recalled ? 1 : 0) - r)), 0.5, 2.5);
   }
