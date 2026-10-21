@@ -4,7 +4,7 @@
   const KEY = 'bahasa-indonesisch.v1';
   const DAY = 86400000;
   const ROLLOVER_H = 4; // ein Lerntag beginnt um 4 Uhr früh – Nachteulen zählen noch zum Vortag
-  const { norm } = window.U;
+  const { norm, t } = window.U;
 
   function hash(s) {
     let h = 5381;
@@ -71,6 +71,7 @@
       colloquial: true, autoplay: true, typing: true,
       rate: 0.9, voice: '', reminder: '19:00',
       handsFree: false, dialogDe: false,
+      lang: window.U.LANG, // Sprache der App: 'de' oder 'en'
     },
     learner: { m: 1, base: 10 },
     cards: {}, days: {}, lessons: {}, custom: [], log: [],
@@ -97,7 +98,7 @@
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
-    catch (e) { window.U.toast('Speichern fehlgeschlagen – ist der Speicher voll?'); }
+    catch (e) { window.U.toast(t('Speichern fehlgeschlagen – ist der Speicher voll?')); }
   }
 
   // pos = Wortart für automatische Beispielsätze: n = Ding, v = Tätigkeit, a = Eigenschaft, x = Ausdruck
@@ -359,12 +360,12 @@
     return { words, sentences };
   }
   function level(words) {
-    if (words < 80) return { code: 'A0', name: 'Einstieg' };
-    if (words < 300) return { code: 'A1', name: 'Grundlagen' };
-    if (words < 700) return { code: 'A2', name: 'Alltag' };
-    if (words < 1200) return { code: 'B1', name: 'Selbstständig' };
-    if (words < 1650) return { code: 'B1+', name: 'Fortgeschritten' };
-    return { code: 'B2', name: 'Sicher unterwegs' };
+    if (words < 80) return { code: 'A0', name: t('Einstieg') };
+    if (words < 300) return { code: 'A1', name: t('Grundlagen') };
+    if (words < 700) return { code: 'A2', name: t('Alltag') };
+    if (words < 1200) return { code: 'B1', name: t('Selbstständig') };
+    if (words < 1650) return { code: 'B1+', name: t('Fortgeschritten') };
+    return { code: 'B2', name: t('Sicher unterwegs') };
   }
 
   // Fortschritt pro Level (1 = Grundlagen, 2 = Fortgeschritten)

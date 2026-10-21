@@ -2,31 +2,40 @@
 // Tippen oder Sprechen, Freihand-Modus, Auswertung – und die Suche „Situation schildern“,
 // die passende Gespräche, Wörter, Beispielsätze und Grammatik zusammenstellt.
 (function () {
-  const { esc, norm, lev, shuffle, pick, Speech, Listen, icon, toast, selectThenCheck } = window.U;
+  const { esc, norm, lev, shuffle, pick, Speech, Listen, icon, toast, selectThenCheck, t, LANG } = window.U;
   const St = () => window.Store;
 
   // ---------- Profil ----------
   const OPTIONS = {
-    asal: [['Austria', 'Österreich'], ['Jerman', 'Deutschland'], ['Swiss', 'der Schweiz'], ['Belanda', 'den Niederlanden'],
-      ['Italia', 'Italien'], ['Inggris', 'England'], ['Amerika', 'Amerika'], ['Australia', 'Australien']],
-    kerja: [['karyawan kantor', 'Büroangestellte(r)'], ['manajer', 'Manager(in)'], ['guru', 'Lehrer(in)'], ['dokter', 'Arzt/Ärztin'],
-      ['perawat', 'Pflegekraft'], ['insinyur', 'Ingenieur(in)'], ['desainer', 'Designer(in)'], ['arsitek', 'Architekt(in)'],
-      ['pengusaha', 'Unternehmer(in)'], ['pegawai hotel', 'Hotelangestellte(r)'], ['mahasiswa', 'Student(in)'], ['pensiunan', 'im Ruhestand']],
-    hobi: [['berenang', 'Schwimmen'], ['selancar', 'Surfen'], ['yoga', 'Yoga'], ['membaca', 'Lesen'], ['memasak', 'Kochen'],
-      ['naik gunung', 'Bergwandern'], ['jalan-jalan', 'Reisen'], ['fotografi', 'Fotografieren'], ['menyanyi', 'Singen'],
-      ['berkebun', 'Gärtnern'], ['menari', 'Tanzen'], ['olahraga', 'Sport']],
-    pasanganRel: [['suami', 'Mann'], ['istri', 'Frau'], ['pacar', 'Partner(in)'], ['tunangan', 'Verlobte(r)']],
-    anrede: [['perempuan', 'als Frau – „Bu“, „Mbak“'], ['laki-laki', 'als Mann – „Pak“, „Mas“'], ['', 'neutral – „Kak“']],
+    asal: [['Austria', 'Österreich', 'Austria'], ['Jerman', 'Deutschland', 'Germany'], ['Swiss', 'der Schweiz', 'Switzerland'], ['Belanda', 'den Niederlanden', 'the Netherlands'],
+      ['Italia', 'Italien', 'Italy'], ['Inggris', 'England', 'England'], ['Amerika', 'Amerika', 'America'], ['Australia', 'Australien', 'Australia']],
+    kerja: [['karyawan kantor', 'Büroangestellte(r)', 'office worker'], ['manajer', 'Manager(in)', 'manager'], ['guru', 'Lehrer(in)', 'teacher'], ['dokter', 'Arzt/Ärztin', 'doctor'],
+      ['perawat', 'Pflegekraft', 'nurse'], ['insinyur', 'Ingenieur(in)', 'engineer'], ['desainer', 'Designer(in)', 'designer'], ['arsitek', 'Architekt(in)', 'architect'],
+      ['pengusaha', 'Unternehmer(in)', 'entrepreneur'], ['pegawai hotel', 'Hotelangestellte(r)', 'hotel employee'], ['mahasiswa', 'Student(in)', 'student'], ['pensiunan', 'im Ruhestand', 'retiree']],
+    hobi: [['berenang', 'Schwimmen', 'swimming'], ['selancar', 'Surfen', 'surfing'], ['yoga', 'Yoga', 'yoga'], ['membaca', 'Lesen', 'reading'], ['memasak', 'Kochen', 'cooking'],
+      ['naik gunung', 'Bergwandern', 'hiking'], ['jalan-jalan', 'Reisen', 'travelling'], ['fotografi', 'Fotografieren', 'photography'], ['menyanyi', 'Singen', 'singing'],
+      ['berkebun', 'Gärtnern', 'gardening'], ['menari', 'Tanzen', 'dancing'], ['olahraga', 'Sport', 'sport']],
+    pasanganRel: [['suami', 'Mann', 'husband'], ['istri', 'Frau', 'wife'], ['pacar', 'Partner(in)', 'partner'], ['tunangan', 'Verlobte(r)', 'fiancé(e)']],
+    anrede: [['perempuan', 'als Frau – „Bu“, „Mbak“', 'as a woman – “Bu”, “Mbak”'], ['laki-laki', 'als Mann – „Pak“, „Mas“', 'as a man – “Pak”, “Mas”'], ['', 'neutral – „Kak“', 'neutral – “Kak”']],
   };
   const FALLBACK = {
     nama: 'Anna', asal: 'Jerman', asalDe: 'Deutschland', kota: 'Bali', kerja: 'karyawan kantor', kerjaDe: 'Büroangestellte(r)',
     hobi: 'jalan-jalan', hobiDe: 'Reisen', pasangan: 'Budi', pasanganRel: 'pacar', pasanganRelDe: 'Partner(in)',
   };
 
+  // Bezeichnung einer Option in der Sprache der App
+  const label = o => (LANG === 'en' ? o[2] : o[1]);
+  if (LANG === 'en') Object.assign(FALLBACK, { asalDe: 'Germany', kerjaDe: 'office worker', hobiDe: 'travelling', pasanganRelDe: 'partner' });
+
   function profile() {
     const p = Object.assign({}, St().S.profile || {});
     const out = {};
     Object.keys(FALLBACK).forEach(k => { out[k] = (p[k] || '').trim() || FALLBACK[k]; });
+    // Gewählte Optionen immer in der aktuellen Sprache beschreiben (eigene Eingaben bleiben, wie sie sind)
+    ['asal', 'kerja', 'hobi', 'pasanganRel'].forEach(k => {
+      const o = OPTIONS[k].find(x => x[0] === out[k]);
+      if (o) out[k + 'De'] = label(o);
+    });
     out.hasPartner = !!(p.pasangan || '').trim();
     out.hasName = !!(p.nama || '').trim();
     out.bu = p.anrede === 'perempuan' ? 'Bu' : p.anrede === 'laki-laki' ? 'Pak' : 'Kak';
@@ -106,7 +115,9 @@
 
   // ---------- Gesprächsablauf ----------
   const CONFUSED = ['Maaf, bagaimana?', 'Maaf, maksudnya?', 'Hmm, maaf, saya kurang mengerti.'];
-  const CONFUSED_DE = { 'Maaf, bagaimana?': 'Entschuldigung, wie bitte?', 'Maaf, maksudnya?': 'Entschuldigung, was meinst du?', 'Hmm, maaf, saya kurang mengerti.': 'Hm, tut mir leid, das verstehe ich nicht ganz.' };
+  const CONFUSED_DE = LANG === 'en'
+    ? { 'Maaf, bagaimana?': 'Sorry, pardon?', 'Maaf, maksudnya?': 'Sorry, what do you mean?', 'Hmm, maaf, saya kurang mengerti.': "Hmm, sorry, I don't quite understand." }
+    : { 'Maaf, bagaimana?': 'Entschuldigung, wie bitte?', 'Maaf, maksudnya?': 'Entschuldigung, was meinst du?', 'Hmm, maaf, saya kurang mengerti.': 'Hm, tut mir leid, das verstehe ich nicht ganz.' };
 
   class DialogRunner {
     // opts: { dialog, onExit(), onProfile() }
@@ -129,10 +140,10 @@
       root.innerHTML = `
         <div class="session talk">
           <div class="s-top">
-            <button class="icon-btn" data-s="quit" aria-label="Beenden">${icon('x', 24)}</button>
+            <button class="icon-btn" data-s="quit" aria-label="${t('Beenden')}">${icon('x', 24)}</button>
             <div class="talk-title"><b>${esc(this.d.icon)} ${esc(this.d.title)}</b><span>${esc(fill(this.d.partner, this.prof))}</span></div>
-            <button class="toggle-btn${this.showDe ? ' on' : ''}" data-s="de" aria-label="Übersetzung zeigen">DE</button>
-            ${Listen.supported ? `<button class="toggle-btn${this.handsFree ? ' on' : ''}" data-s="hf" aria-label="Freihand-Modus">${icon('headphones', 18)}</button>` : ''}
+            <button class="toggle-btn${this.showDe ? ' on' : ''}" data-s="de" aria-label="${t('Übersetzung zeigen')}">${LANG === 'en' ? 'EN' : 'DE'}</button>
+            ${Listen.supported ? `<button class="toggle-btn${this.handsFree ? ' on' : ''}" data-s="hf" aria-label="${t('Freihand-Modus')}">${icon('headphones', 18)}</button>` : ''}
           </div>
           <div class="s-body"><div class="chat${this.showDe ? ' show-de' : ''}"></div></div>
           <div class="s-foot"></div>
@@ -154,7 +165,7 @@
         hf.classList.toggle('on', this.handsFree);
         St().S.settings.handsFree = this.handsFree;
         St().save();
-        toast(this.handsFree ? 'Freihand-Modus an: Nach jedem Satz hört die App automatisch zu.' : 'Freihand-Modus aus.');
+        toast(this.handsFree ? t('Freihand-Modus an: Nach jedem Satz hört die App automatisch zu.') : t('Freihand-Modus aus.'));
         if (this.handsFree && this.waitingFor) this.listen();
         if (!this.handsFree) Listen.stop();
       };
@@ -177,13 +188,13 @@
           <div class="big-emoji">${esc(d.icon)}</div>
           <h2>${esc(d.title)}</h2>
           <p class="setting">${esc(fill(d.setting, p))}</p>
-          <p class="goal"><b>Dein Ziel:</b> ${esc(fill(d.goal, p))}</p>
-          ${needProfile ? `<div class="callout">Dieses Gespräch nutzt deine Angaben unter <b>Über mich</b> (Name, Herkunft, Beruf …). <button class="link-btn" data-s="profile">Jetzt ausfüllen</button></div>` : ''}
-          <p class="muted small">Antworte auf Indonesisch – tippen oder 🎤 sprechen. Hilfe gibt es unten: Tipp, Auswahl oder Lösung. Tippe auf einen Satz deines Gegenübers für die Übersetzung.</p>
+          <p class="goal"><b>${t('Dein Ziel:')}</b> ${esc(fill(d.goal, p))}</p>
+          ${needProfile ? `<div class="callout">${t('Dieses Gespräch nutzt deine Angaben unter <b>Über mich</b> (Name, Herkunft, Beruf …).')} <button class="link-btn" data-s="profile">${t('Jetzt ausfüllen')}</button></div>` : ''}
+          <p class="muted small">${t('Antworte auf Indonesisch – tippen oder 🎤 sprechen. Hilfe gibt es unten: Tipp, Auswahl oder Lösung. Tippe auf einen Satz deines Gegenübers für die Übersetzung.')}</p>
         </div>`;
       const pb = this.chat.querySelector('[data-s="profile"]');
       if (pb) pb.onclick = () => this.onProfile && this.onProfile(() => { this.prof = profile(); this.intro(); });
-      this.foot.innerHTML = `<button class="btn primary block big" data-s="start">Gespräch starten</button>`;
+      this.foot.innerHTML = `<button class="btn primary block big" data-s="start">${t('Gespräch starten')}</button>`;
       this.foot.querySelector('[data-s="start"]').onclick = () => { this.chat.innerHTML = ''; this.i = 0; this.started = Date.now(); this.play(); };
     }
 
@@ -204,7 +215,7 @@
         <div class="b-id">${text}</div>
         <div class="tok-info"></div>
         ${de ? `<div class="b-de">${esc(de)}</div>` : ''}
-        <button class="speak-btn sm" data-say="${esc(id)}" aria-label="Vorlesen">${icon('speaker', 16)}</button>`);
+        <button class="speak-btn sm" data-say="${esc(id)}" aria-label="${t('Vorlesen')}">${icon('speaker', 16)}</button>`);
     }
 
     play() {
@@ -235,17 +246,17 @@
       this.attempts = 0;
       this.helped = false;
       this.foot.innerHTML = `
-        <div class="task-card"><span class="label">Deine Aufgabe</span><div>${esc(fill(step.task, p))}</div></div>
+        <div class="task-card"><span class="label">${t('Deine Aufgabe')}</span><div>${esc(fill(step.task, p))}</div></div>
         <div class="help-box" hidden></div>
         <form class="talk-input" autocomplete="off">
-          <input type="text" placeholder="Antwort auf Indonesisch …" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="Antwort">
-          ${Listen.supported ? `<button type="button" class="icon-btn mic" data-s="mic" aria-label="Sprechen">${icon('mic', 22)}</button>` : ''}
-          <button type="submit" class="icon-btn send" aria-label="Senden">${icon('send', 20)}</button>
+          <input type="text" placeholder="${t('Antwort auf Indonesisch …')}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="${t('Antwort')}">
+          ${Listen.supported ? `<button type="button" class="icon-btn mic" data-s="mic" aria-label="${t('Sprechen')}">${icon('mic', 22)}</button>` : ''}
+          <button type="submit" class="icon-btn send" aria-label="${t('Senden')}">${icon('send', 20)}</button>
         </form>
         <div class="talk-help">
-          <button type="button" class="chip-btn" data-s="tip">💡 Tipp</button>
-          <button type="button" class="chip-btn" data-s="choices">Auswahl</button>
-          <button type="button" class="chip-btn" data-s="solution">Lösung</button>
+          <button type="button" class="chip-btn" data-s="tip">💡 ${t('Tipp')}</button>
+          <button type="button" class="chip-btn" data-s="choices">${t('Auswahl')}</button>
+          <button type="button" class="chip-btn" data-s="solution">${t('Lösung')}</button>
         </div>`;
       const form = this.foot.querySelector('form');
       const input = form.querySelector('input');
@@ -286,9 +297,9 @@
         onError: code => {
           if (mic) mic.classList.remove('listening');
           if (code === 'no-speech' || code === 'aborted') return;
-          if (code === 'not-allowed' || code === 'service-not-allowed') toast('Das Mikrofon ist nicht erlaubt. Du kannst die Antwort auch tippen oder das Mikrofon der Tastatur nutzen.');
-          else if (code === 'network') toast('Die Spracherkennung braucht hier Internet. Tippe die Antwort oder nutze das Mikrofon der Tastatur.');
-          else if (code === 'language-not-supported') toast('Dein Handy erkennt kein Indonesisch. Nutze das Mikrofon der Tastatur.');
+          if (code === 'not-allowed' || code === 'service-not-allowed') toast(t('Das Mikrofon ist nicht erlaubt. Du kannst die Antwort auch tippen oder das Mikrofon der Tastatur nutzen.'));
+          else if (code === 'network') toast(t('Die Spracherkennung braucht hier Internet. Tippe die Antwort oder nutze das Mikrofon der Tastatur.'));
+          else if (code === 'language-not-supported') toast(t('Dein Handy erkennt kein Indonesisch. Nutze das Mikrofon der Tastatur.'));
         },
       });
       if (!ok && mic) mic.classList.remove('listening');
@@ -299,7 +310,7 @@
       const box = this.foot.querySelector('.help-box');
       const ans = answersFor(step, p)[0];
       const words = ans ? ans.k.map(k => parseKey(k, p)).filter(g => !g.optional && g.alts[0] !== '#num').map(g => `<b>${esc(g.first)}</b> = ${esc(g.label)}`).join(' · ') : '';
-      box.innerHTML = `💡 ${step.tip ? esc(fill(step.tip, p)) : words || 'Schau dir die Aufgabe noch einmal an.'}`;
+      box.innerHTML = `💡 ${step.tip ? esc(fill(step.tip, p)) : words || t('Schau dir die Aufgabe noch einmal an.')}`;
       box.hidden = false;
     }
 
@@ -311,9 +322,9 @@
       const m = fill(ans.m, p);
       const box = this.foot.querySelector('.help-box');
       box.innerHTML = `
-        <div class="sol"><b>${esc(m)}</b> <button class="speak-btn sm" data-say="${esc(m)}" aria-label="Vorlesen">${icon('speaker', 16)}</button></div>
+        <div class="sol"><b>${esc(m)}</b> <button class="speak-btn sm" data-say="${esc(m)}" aria-label="${t('Vorlesen')}">${icon('speaker', 16)}</button></div>
         <div class="muted small">${esc(fill(ans.md, p))}</div>
-        <button class="btn ghost sm" data-s="take">Übernehmen</button>`;
+        <button class="btn ghost sm" data-s="take">${t('Übernehmen')}</button>`;
       box.hidden = false;
       box.querySelector('[data-s="take"]').onclick = () => { this.input.value = m; this.lastAlts = null; this.input.focus(); };
       if (!silent) Speech.speak(m);
@@ -338,7 +349,7 @@
         const b = list.querySelectorAll('.opt')[i];
         b.classList.add('wrong');
         b.disabled = true;
-        toast('Das passt hier nicht – versuch es noch einmal.');
+        toast(t('Das passt hier nicht – versuch es noch einmal.'));
         arm();
       });
       arm();
@@ -357,11 +368,11 @@
         this.waitingFor = null;
         const model = fill(res.ans.m, p);
         const same = norm(model) === norm(res.text) || lev(norm(model), norm(res.text)) <= 2;
-        const optTip = res.missingOpt.length ? `<div>Tipp: Mit <b>${esc(res.missingOpt[0].first)}</b> (${esc(res.missingOpt[0].label)}) klingt es noch natürlicher.</div>` : '';
+        const optTip = res.missingOpt.length ? `<div>${t('Tipp: Mit <b>{w}</b> ({l}) klingt es noch natürlicher.', { w: esc(res.missingOpt[0].first), l: esc(res.missingOpt[0].label) })}</div>` : '';
         const fb = document.createElement('div');
         fb.className = 'fb-mini ok';
-        fb.innerHTML = `<div>✓ ${this.helped ? 'Gut gemacht!' : pick(['Verstanden!', 'Bagus!', 'Sehr gut!', 'Mantap!'])}</div>
-          ${same ? '' : `<div class="alt">Auch gut: <b>${esc(model)}</b> <button class="speak-btn sm" data-say="${esc(model)}" aria-label="Vorlesen">${icon('speaker', 14)}</button></div>`}
+        fb.innerHTML = `<div>✓ ${this.helped ? t('Gut gemacht!') : pick([t('Verstanden!'), 'Bagus!', t('Sehr gut!'), 'Mantap!'])}</div>
+          ${same ? '' : `<div class="alt">${t('Auch gut:')} <b>${esc(model)}</b> <button class="speak-btn sm" data-say="${esc(model)}" aria-label="${t('Vorlesen')}">${icon('speaker', 14)}</button></div>`}
           ${optTip}`;
         userEl.appendChild(fb);
         this.results.push({ task: fill(step.task, p), said: text, model, md: fill(res.ans.md, p), status: this.helped ? 'help' : 'ok' });
@@ -375,8 +386,8 @@
       const fb = document.createElement('div');
       fb.className = 'fb-mini ' + (res.status === 'partial' ? 'meh' : 'bad');
       fb.innerHTML = res.status === 'partial'
-        ? `<div>Fast! Es fehlt noch: ${res.missing.map(g => `<b>${esc(g.label)}</b>`).join(', ')}</div>`
-        : '<div>Das hat dein Gegenüber nicht verstanden.</div>';
+        ? `<div>${t('Fast! Es fehlt noch:')} ${res.missing.map(g => `<b>${esc(g.label)}</b>`).join(', ')}</div>`
+        : `<div>${t('Das hat dein Gegenüber nicht verstanden.')}</div>`;
       userEl.appendChild(fb);
       const conf = pick(CONFUSED);
       this.partnerSays(conf, CONFUSED_DE[conf]);
@@ -392,7 +403,7 @@
     }
 
     endReached() {
-      this.foot.innerHTML = `<button class="btn primary block big" data-s="sum">Auswertung ansehen</button>`;
+      this.foot.innerHTML = `<button class="btn primary block big" data-s="sum">${t('Auswertung ansehen')}</button>`;
       this.foot.querySelector('[data-s="sum"]').onclick = () => this.finish();
     }
 
@@ -425,8 +436,8 @@
         if (r && !r.part && !S.cards[r.card.id] && !fresh.some(f => f.id === r.card.id)) fresh.push(r.card);
       });
       const hard = this.results.filter(r => r.status !== 'ok');
-      const head = score >= 0.85 ? ['🎉', 'Bagus sekali!', 'Du hast das Gespräch super gemeistert.']
-        : score >= 0.5 ? ['👏', 'Kerja bagus!', 'Gut gemacht – mit etwas Übung sitzt es bald.'] : ['💪', 'Tetap semangat!', 'Jedes Gespräch macht dich sicherer. Probier es gleich noch einmal!'];
+      const head = score >= 0.85 ? ['🎉', 'Bagus sekali!', t('Du hast das Gespräch super gemeistert.')]
+        : score >= 0.5 ? ['👏', 'Kerja bagus!', t('Gut gemacht – mit etwas Übung sitzt es bald.')] : ['💪', 'Tetap semangat!', t('Jedes Gespräch macht dich sicherer. Probier es gleich noch einmal!')];
       this.body.scrollTop = 0;
       this.chat.innerHTML = `
         <div class="summary">
@@ -434,8 +445,8 @@
           <h2>${head[1]}</h2>
           <p class="muted">${head[2]}</p>
           <div class="sum-grid">
-            <div class="tile-stat"><b>${ok}/${this.results.length}</b><span>selbst geschafft</span></div>
-            <div class="tile-stat"><b>${Math.round(score * 100)} %</b><span>Ergebnis</span></div>
+            <div class="tile-stat"><b>${ok}/${this.results.length}</b><span>${t('selbst geschafft')}</span></div>
+            <div class="tile-stat"><b>${Math.round(score * 100)} %</b><span>${t('Ergebnis')}</span></div>
           </div>
           <div class="result-list">
             ${this.results.map(r => `
@@ -443,29 +454,29 @@
                 <span class="res-ic">${r.status === 'ok' ? '✓' : r.status === 'help' ? '~' : '✗'}</span>
                 <span class="grow">
                   <span class="muted small">${esc(r.task)}</span>
-                  <span>Du: ${esc(r.said)}</span>
+                  <span>${t('Du:')} ${esc(r.said)}</span>
                   ${r.status === 'ok' && norm(r.said) === norm(r.model) ? '' : `<span class="model"><b>${esc(r.model)}</b> – ${esc(r.md)}</span>`}
                 </span>
               </div>`).join('')}
           </div>
           ${fresh.length ? `
             <div class="wrong-list">
-              <h3>Neue Wörter aus dem Gespräch</h3>
-              ${fresh.slice(0, 8).map(c => `<div class="wl-row"><span><b>${esc(c.indo)}</b> – ${esc(c.de)}</span><button class="speak-btn sm" data-say="${esc(c.indo)}" aria-label="Vorlesen">${icon('speaker', 16)}</button></div>`).join('')}
-              <button class="btn ghost block" data-s="pull">Diese Wörter in den Vokabeltrainer</button>
+              <h3>${t('Neue Wörter aus dem Gespräch')}</h3>
+              ${fresh.slice(0, 8).map(c => `<div class="wl-row"><span><b>${esc(c.indo)}</b> – ${esc(c.de)}</span><button class="speak-btn sm" data-say="${esc(c.indo)}" aria-label="${t('Vorlesen')}">${icon('speaker', 16)}</button></div>`).join('')}
+              <button class="btn ghost block" data-s="pull">${t('Diese Wörter in den Vokabeltrainer')}</button>
             </div>` : ''}
-          ${hard.length ? `<button class="btn ghost block" data-s="hard">Schwierige Sätze im Trainer üben (${hard.length})</button>` : ''}
+          ${hard.length ? `<button class="btn ghost block" data-s="hard">${t('Schwierige Sätze im Trainer üben ({n})', { n: hard.length })}</button>` : ''}
         </div>`;
       this.foot.innerHTML = `
         <div class="foot-row">
-          <button class="btn ghost" data-s="again">Nochmal</button>
-          <button class="btn primary" data-s="done">Fertig</button>
+          <button class="btn ghost" data-s="again">${t('Nochmal')}</button>
+          <button class="btn primary" data-s="done">${t('Fertig')}</button>
         </div>`;
       const pull = this.chat.querySelector('[data-s="pull"]');
       if (pull) pull.onclick = () => {
         fresh.slice(0, 8).forEach(c => (c.custom ? null : St().pullToTrainer(c.id)));
         pull.disabled = true;
-        pull.textContent = '✓ Im Vokabeltrainer';
+        pull.textContent = t('✓ Im Vokabeltrainer');
       };
       const hb = this.chat.querySelector('[data-s="hard"]');
       if (hb) hb.onclick = () => {
@@ -476,14 +487,14 @@
           added++;
         });
         hb.disabled = true;
-        hb.textContent = added ? `✓ ${added} ${added === 1 ? 'Satz' : 'Sätze'} im Vokabeltrainer` : '✓ Schon im Vokabeltrainer';
+        hb.textContent = added ? (added === 1 ? t('✓ 1 Satz im Vokabeltrainer') : t('✓ {n} Sätze im Vokabeltrainer', { n: added })) : t('✓ Schon im Vokabeltrainer');
       };
       this.foot.querySelector('[data-s="again"]').onclick = () => { this.results = []; this.prof = profile(); this.chat.innerHTML = ''; this.i = 0; this.play(); };
       this.foot.querySelector('[data-s="done"]').onclick = () => this.close();
     }
 
     quit() {
-      if (this.results.length && !confirm('Gespräch beenden?')) return;
+      if (this.results.length && !confirm(t('Gespräch beenden?'))) return;
       this.close();
     }
     close() {
@@ -502,7 +513,12 @@
     'wird werden würde kann könnte will möchte möchten muss soll sollte sage sagt sagen man mich mir dich dir sich mein meine meinen meinem dein ' +
     'deine kein keine keinen nicht nur auch noch schon sehr so dann denn wenn dass ob als mal heute gestern morgen hier da dort jetzt etwas ' +
     'alles viel ja nein bitte gern gerne richtig sprechen frage fragen indonesisch deutsch heißt bedeutet unterschied zwischen ' +
-    'yang dan atau itu ini saya aku kamu untuk dengan dari pada juga apa').split(' '));
+    'yang dan atau itu ini saya aku kamu untuk dengan dari pada juga apa ' +
+    // Englisch
+    'the and but how what where when why who whom which for from with about into over under are was were been have has had does did ' +
+    'will would can could want wants should must say said says you she they them his her our their this that there here not yes only ' +
+    'also very then than just today yesterday tomorrow now something everything much many please right speak question ask asking ' +
+    'indonesian english mean means meaning difference between got get went see need needs like would one some any').split(' '));
   const SYN = {
     reklam: ['beschw', 'falsch', 'kaputt'], beschw: ['reklam', 'falsch'], kalt: ['falsch', 'reklam'], falsch: ['reklam', 'fehler'],
     arzt: ['krank', 'schmer', 'gesund', 'doktor'], doktor: ['arzt'], krank: ['arzt', 'schmer', 'apothe'], schmer: ['krank', 'arzt'],
@@ -515,6 +531,20 @@
     hotel: ['zimmer', 'rezept'], zimmer: ['hotel'], einkau: ['markt', 'preis', 'kaufen'], handel: ['markt', 'preis', 'billig'],
     teuer: ['preis', 'billig', 'handel'], restau: ['essen', 'bestel', 'warung'], kellne: ['restau', 'bestel'], essen: ['restau', 'warung', 'bestel'],
   };
+
+  // Englische Suchwörter (auf 6 Buchstaben gekürzt wie die deutschen)
+  const SYN_EN = {
+    compla: ['wrong', 'broken', 'refund'], wrong: ['compla', 'mistak'], mistak: ['wrong', 'compla'],
+    doctor: ['sick', 'pain', 'health'], sick: ['doctor', 'pain', 'pharma'], ill: ['doctor', 'sick'], pain: ['sick', 'doctor'],
+    police: ['theft', 'stolen', 'emerge'], stolen: ['theft', 'police'], theft: ['police', 'stolen'], thief: ['theft', 'police'], robbed: ['theft', 'police'],
+    apartm: ['rent', 'house', 'landlo'], flat: ['rent', 'house', 'landlo'], rent: ['apartm', 'landlo', 'house'], landlo: ['rent', 'apartm'],
+    mother: ['family'], father: ['family'], friend: ['meet'], boss: ['meetin', 'work'], collea: ['work', 'meetin'],
+    work: ['job', 'office'], job: ['work', 'interv'], visa: ['immigr', 'extend'], immigr: ['visa'],
+    taxi: ['ride'], scoote: ['motorb', 'rent'], petrol: ['scoote'], beach: ['ojek', 'sea'],
+    hotel: ['room', 'recept'], room: ['hotel'], shoppi: ['market', 'price', 'buy'], bargai: ['market', 'price', 'cheap'], haggle: ['market', 'price'],
+    expens: ['price', 'cheap', 'bargai'], restau: ['food', 'order'], waiter: ['restau', 'order'], food: ['restau', 'warung', 'order'],
+  };
+  Object.keys(SYN_EN).forEach(k => { SYN[k] = (SYN[k] || []).concat(SYN_EN[k]); });
 
   function stems(text) {
     return fold(norm(text)).split(' ').filter(w => w.length > 2 && !STOP.has(w)).map(w => (w.length > 6 ? w.slice(0, 6) : w));
@@ -597,5 +627,5 @@
     }).sort((a, b) => b[1] - a[1]).slice(0, n).map(x => x[0]);
   }
 
-  window.Talk = { OPTIONS, profile, fill, evaluate, parseKey, answersFor, DialogRunner, search, recommend };
+  window.Talk = { OPTIONS, label, profile, fill, evaluate, parseKey, answersFor, DialogRunner, search, recommend };
 })();

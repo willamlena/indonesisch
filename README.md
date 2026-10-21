@@ -1,6 +1,6 @@
 # Bahasa – Indonesisch lernen
 
-Offline-Web-App (PWA) zum täglichen Indonesisch-Lernen für Deutschsprachige.
+Offline-Web-App (PWA) zum täglichen Indonesisch-Lernen – auf Deutsch oder Englisch (umschaltbar unter Einstellungen, der Lernstand bleibt gleich).
 Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 
 - **Zwei Levels mit rund 2.150 Lernkarten:** Level 1 – Grundlagen (44 Themen, A1–A2) und Level 2 – Fortgeschritten (40 Themen, B1–B2: Leben in Indonesien, Beruf & Geschäft, Umgangssprache, Meinungen). Level 2 startet automatisch nach Level 1.
@@ -11,6 +11,7 @@ Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 - **Passt sich an:** Ein persönlicher Gedächtnis-Faktor stellt die Abstände ein. Die Zahl neuer Wörter pro Tag richtet sich nach Trefferquote und Tageszeit.
 - **Gesprächstrainer (offline):** 25 Alltagsgespräche zum Nachspielen, z. B. falsches Essen reklamieren, beim Arzt oder mit dem Vermieter. Du antwortest per Tippen oder Sprechen, Freihand-Modus inklusive. Hilfe gibt es als Tipp, Auswahl oder Lösung, am Ende eine Auswertung.
 - **„Über mich“ und „Situation schildern“:** Deine Angaben fließen in die Gespräche ein. Beschreibst du eine Situation oder stellst eine Frage, stellt die App passende Gespräche, Wörter, Sätze und Grammatik zusammen.
+- **Deutsch oder Englisch:** Alle Karten, Lektionen, Gespräche und die ganze Oberfläche gibt es in beiden Sprachen. Neue Nutzer bekommen automatisch die Sprache ihres Handys.
 - **Standardsprache mit Alltagsform** (tidak → nggak), Vorlesen über die Sprachausgabe des Handys
 
 ---
@@ -61,6 +62,8 @@ Läuft auf iPhone und Android, der Lernstand bleibt nur auf dem Handy.
 | `index.html`, `style.css` | Seite und Design |
 | `vocab.js`, `vocab2.js`, `grammar.js`, `grammar2.js` | Kursinhalt Level 1 und 2 |
 | `dialogs.js` | Gespräche für den Gesprächstrainer |
+| `vocab.en.js`, `vocab2.en.js`, `grammar.en.js`, `grammar2.en.js`, `dialogs.en.js` | Englische Fassung der Inhalte (zugeordnet über das indonesische Wort bzw. die Lektions- und Gesprächs-ID) |
+| `i18n.en.js` | Englische Texte der Oberfläche (Schlüssel = deutscher Text) |
 | `talk.js` | Gesprächstrainer, Antwortprüfung, Suche „Situation schildern“ |
 | `srs.js` | Wiederholungs-Algorithmus (FSRS-4.5 + persönlicher Gedächtnis-Faktor) |
 | `store.js` | Lernstand, Tagesplanung, Anpassung ans Tempo |

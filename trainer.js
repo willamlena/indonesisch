@@ -3,14 +3,14 @@
 // nach rechts wischen = gewusst, nach links = nicht gewusst. Gewusste Karten kommen seltener,
 // vergessene öfter (gemeinsames Gedächtnis mit den Lektionen). Neue eigene Wörter werden kurz vorgestellt und dann zweimal geübt.
 (function () {
-  const { esc, shuffle, Speech, icon } = window.U;
+  const { esc, shuffle, Speech, icon, t } = window.U;
   const St = window.Store;
   const Ex = window.Examples;
   const ROUND = 20;   // Karten pro Runde
   const MAX_NEW = 5;  // höchstens so viele neue Karten pro Runde
 
   const speakBtn = (text, cls) =>
-    `<button class="speak-btn ${cls || ''}" data-say="${esc(text)}" aria-label="Vorlesen">${icon('speaker', cls === 'lg' ? 30 : cls === 'sm' ? 16 : 20)}</button>`;
+    `<button class="speak-btn ${cls || ''}" data-say="${esc(text)}" aria-label="${t('Vorlesen')}">${icon('speaker', cls === 'lg' ? 30 : cls === 'sm' ? 16 : 20)}</button>`;
 
   const exampleHTML = ex => Ex.blockHTML(ex);
 
@@ -26,7 +26,7 @@
       root.innerHTML = `
         <div class="session trainer">
           <div class="s-top">
-            <button class="icon-btn" data-s="quit" aria-label="Beenden">${icon('x', 24)}</button>
+            <button class="icon-btn" data-s="quit" aria-label="${t('Beenden')}">${icon('x', 24)}</button>
             <div class="progress" role="progressbar"><i></i></div>
             <div class="s-count"></div>
           </div>
@@ -122,7 +122,7 @@
     }
 
     quit() {
-      if (!confirm('Vokabeltrainer beenden? Dein Fortschritt ist gespeichert.')) return;
+      if (!confirm(t('Vokabeltrainer beenden? Dein Fortschritt ist gespeichert.'))) return;
       this.close();
     }
     close() {
@@ -141,21 +141,21 @@
       const u = St.UNITS[card.unit];
       this.body.innerHTML = `
         <div class="ex-kicker">
-          <span class="chip accent">Neue Karte</span>
-          <span class="chip soft">${card.custom ? '★ Dein Wort' : esc(u.icon + ' ' + u.title)}</span>
+          <span class="chip accent">${t('Neue Karte')}</span>
+          <span class="chip soft">${card.custom ? '★ ' + t('Dein Wort') : esc(u.icon + ' ' + u.title)}</span>
         </div>
         <div class="fc">
           <div class="intro-head"><div class="big-word">${esc(card.indo)}</div>${speakBtn(card.indo, 'lg')}</div>
-          ${card.coll && set.colloquial ? `<div class="coll"><span>Alltag</span> ${esc(card.coll)}</div>` : ''}
+          ${card.coll && set.colloquial ? `<div class="coll"><span>${t('Alltag')}</span> ${esc(card.coll)}</div>` : ''}
           <div class="meaning">${esc(card.de)}</div>
           ${card.note ? `<div class="note">💡 ${esc(card.note)}</div>` : ''}
           ${exampleHTML(Ex.forCard(card))}
         </div>
-        <p class="hint">Sprich das Wort laut nach – gleich wird es zweimal abgefragt.</p>`;
+        <p class="hint">${t('Sprich das Wort laut nach – gleich wird es zweimal abgefragt.')}</p>`;
       this.foot.innerHTML = `
         <div class="foot-row">
-          <button class="btn ghost" data-s="known">Kenne ich schon</button>
-          <button class="btn primary" data-s="next">Weiter</button>
+          <button class="btn ghost" data-s="known">${t('Kenne ich schon')}</button>
+          <button class="btn primary" data-s="next">${t('Weiter')}</button>
         </div>`;
       if (set.autoplay) setTimeout(() => Speech.speak(card.indo), 250);
       const go = () => {
@@ -186,32 +186,32 @@
         ? (task.step === 0 ? 'id' : 'de')
         : (((st && st.reps) || 0) % 2 === 0 ? 'id' : 'de'));
       task.dir = dir;
-      const label = { review: 'Wiederholung', learn: 'Neu – üben', relearn: 'Nochmal', extra: 'Extra-Runde' }[task.phase];
+      const label = { review: t('Wiederholung'), learn: t('Neu – üben'), relearn: t('Nochmal'), extra: t('Extra-Runde') }[task.phase];
       const front = dir === 'id'
         ? `<div class="fc-q"><div class="big-word">${esc(card.indo)}</div>${speakBtn(card.indo)}</div>
-           <div class="fc-ask">Was bedeutet das?</div>`
+           <div class="fc-ask">${t('Was bedeutet das?')}</div>`
         : `<div class="fc-q"><div class="big-de">${esc(card.de)}</div></div>
-           <div class="fc-ask">Wie sagt man das auf Indonesisch? Sag es laut!</div>`;
+           <div class="fc-ask">${t('Wie sagt man das auf Indonesisch? Sag es laut!')}</div>`;
       const back = dir === 'id'
         ? `<div class="fc-a meaning">${esc(card.de)}</div>`
         : `<div class="fc-a"><span class="big-word">${esc(card.indo)}</span>${speakBtn(card.indo)}</div>`;
       this.body.innerHTML = `
         <div class="ex-kicker">
-          <span class="chip">${dir === 'id' ? 'Indonesisch → Deutsch' : 'Deutsch → Indonesisch'}</span>
+          <span class="chip">${dir === 'id' ? t('Indonesisch → Deutsch') : t('Deutsch → Indonesisch')}</span>
           <span class="chip soft">${label}</span>
         </div>
         <div class="fc fc-card">
-          <div class="stamp yes">Gewusst</div><div class="stamp no">Nicht gewusst</div>
+          <div class="stamp yes">${t('Gewusst')}</div><div class="stamp no">${t('Nicht gewusst')}</div>
           ${front}
           <div class="fc-back" hidden>
             ${back}
-            ${card.coll && set.colloquial ? `<div class="coll"><span>Alltag</span> ${esc(card.coll)}</div>` : ''}
+            ${card.coll && set.colloquial ? `<div class="coll"><span>${t('Alltag')}</span> ${esc(card.coll)}</div>` : ''}
             ${card.note ? `<div class="note">💡 ${esc(card.note)}</div>` : ''}
             ${exampleHTML(Ex.forCard(card))}
           </div>
         </div>`;
       this.answered = false;
-      this.foot.innerHTML = `<button class="btn primary block big" data-s="reveal">Umdrehen</button>`;
+      this.foot.innerHTML = `<button class="btn primary block big" data-s="reveal">${t('Umdrehen')}</button>`;
       if (dir === 'id' && set.autoplay) setTimeout(() => Speech.speak(card.indo), 200);
       const reveal = () => {
         const back = this.body.querySelector('.fc-back');
@@ -229,10 +229,10 @@
     // Nach dem Umdrehen: nach rechts wischen = gewusst, nach links = nicht gewusst (oder die Knöpfe)
     showGrades(card, task) {
       this.foot.innerHTML = `
-        <p class="swipe-hint">← nicht gewusst · wischen · gewusst →</p>
+        <p class="swipe-hint">${t('← nicht gewusst · wischen · gewusst →')}</p>
         <div class="known-row">
-          <button class="btn known-no" data-g="1">${icon("x", 20)} Nicht gewusst</button>
-          <button class="btn known-yes" data-g="3">${icon("check", 20)} Gewusst</button>
+          <button class="btn known-no" data-g="1">${icon("x", 20)} ${t('Nicht gewusst')}</button>
+          <button class="btn known-yes" data-g="3">${icon("check", 20)} ${t('Gewusst')}</button>
         </div>`;
       this.awaitNext = null;
       this.foot.querySelectorAll("[data-g]").forEach(b => {
@@ -333,12 +333,12 @@
     finish() {
       Speech.stop();
       const r = this.round;
-      const t = St.today();
+      const today = St.today();
       const more = this.mode === 'extra' ? 0
         : St.dueWordIds().length + St.trainerNewIds().length + St.learningIds('trainer').length;
       const tomorrow = Object.keys(St.S.cards).filter(id => {
         const c = St.S.cards[id];
-        return c.st === 'R' && c.due === t + 1 && St.CARDS[id] && St.CARDS[id].kind === 'w';
+        return c.st === 'R' && c.due === today + 1 && St.CARDS[id] && St.CARDS[id].kind === 'w';
       }).length;
       const acc = r.cards ? r.ok / r.cards : 1;
       const again = [...r.again].map(id => St.CARDS[id]).filter(Boolean).slice(0, 8);
@@ -347,26 +347,26 @@
       this.body.innerHTML = `
         <div class="summary">
           <div class="big-emoji">${r.cards + r.learned === 0 ? '✅' : acc >= 0.85 ? '🎉' : acc >= 0.65 ? '👏' : '💪'}</div>
-          <h2>${r.cards + r.learned === 0 ? 'Nichts mehr fällig' : acc >= 0.85 ? 'Bagus sekali!' : acc >= 0.65 ? 'Kerja bagus!' : 'Tetap semangat!'}</h2>
-          <p class="muted">${r.cards + r.learned === 0 ? 'Im Moment gibt es keine Karten zu wiederholen.' : 'Runde geschafft.'}</p>
+          <h2>${r.cards + r.learned === 0 ? t('Nichts mehr fällig') : acc >= 0.85 ? 'Bagus sekali!' : acc >= 0.65 ? 'Kerja bagus!' : 'Tetap semangat!'}</h2>
+          <p class="muted">${r.cards + r.learned === 0 ? t('Im Moment gibt es keine Karten zu wiederholen.') : t('Runde geschafft.')}</p>
           ${r.cards + r.learned ? `
           <div class="sum-grid">
-            <div class="tile-stat"><b>${r.cards}</b><span>Karten</span></div>
-            <div class="tile-stat"><b>${Math.round(acc * 100)} %</b><span>gewusst</span></div>
-            <div class="tile-stat"><b>${r.learned}</b><span>neu gelernt</span></div>
-            <div class="tile-stat"><b>${Math.max(1, Math.round((Date.now() - r.start) / 60000))}</b><span>Minuten</span></div>
+            <div class="tile-stat"><b>${r.cards}</b><span>${t('Karten')}</span></div>
+            <div class="tile-stat"><b>${Math.round(acc * 100)} %</b><span>${t('gewusst')}</span></div>
+            <div class="tile-stat"><b>${r.learned}</b><span>${t('neu gelernt')}</span></div>
+            <div class="tile-stat"><b>${Math.max(1, Math.round((Date.now() - r.start) / 60000))}</b><span>${t('Minuten')}</span></div>
           </div>` : ''}
-          <p class="next-info">${more ? `Noch <b>${more}</b> ${more === 1 ? 'Karte' : 'Karten'} bereit.` : `Alles wiederholt! Morgen: <b>${tomorrow}</b> ${tomorrow === 1 ? 'Karte' : 'Karten'}.`}</p>
+          <p class="next-info">${more ? (more === 1 ? t('Noch <b>1</b> Karte bereit.') : t('Noch <b>{n}</b> Karten bereit.', { n: more })) : (tomorrow === 1 ? t('Alles wiederholt! Morgen: <b>1</b> Karte.') : t('Alles wiederholt! Morgen: <b>{n}</b> Karten.', { n: tomorrow }))}</p>
           ${again.length ? `
             <div class="wrong-list">
-              <h3>Diese kommen bald wieder</h3>
+              <h3>${t('Diese kommen bald wieder')}</h3>
               ${again.map(c => `<div class="wl-row"><span><b>${esc(c.indo)}</b> – ${esc(c.de)}</span>${speakBtn(c.indo, 'sm')}</div>`).join('')}
             </div>` : ''}
         </div>`;
       this.foot.innerHTML = `
         <div class="foot-row">
-          <button class="btn ${more ? 'ghost' : 'primary'}" data-s="done">Fertig</button>
-          ${more ? `<button class="btn primary" data-s="again">Nächste Runde</button>` : ''}
+          <button class="btn ${more ? 'ghost' : 'primary'}" data-s="done">${t('Fertig')}</button>
+          ${more ? `<button class="btn primary" data-s="again">${t('Nächste Runde')}</button>` : ''}
         </div>`;
       this.awaitNext = more ? () => this.startRound() : () => this.close();
       this.foot.querySelector('[data-s="done"]').onclick = () => this.close();

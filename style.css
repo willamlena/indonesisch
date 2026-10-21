@@ -704,3 +704,8 @@ body.in-session { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Sprache der App ---------- */
+.lang-pick { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.lang-pick .seg { flex: 1; }
+.lang-note { margin: 10px 0 0; }

@@ -2,15 +2,15 @@
 // innerhalb der Sitzung) und Grammatik-Lektionen. Wählt je nach Festigkeit einer
 // Karte passende Übungen – vom Wiedererkennen bis zum freien Eintippen.
 (function () {
-  const { esc, inline, shuffle, pick, norm, lev, escRe, Speech, icon, lessonHTML, selectThenCheck } = window.U;
+  const { esc, inline, shuffle, pick, norm, lev, escRe, Speech, icon, lessonHTML, selectThenCheck, t } = window.U;
   const St = window.Store;
 
   const speakBtn = (text, cls) =>
-    `<button class="speak-btn ${cls || ''}" data-say="${esc(text)}" aria-label="Vorlesen">${icon('speaker', cls === 'lg' ? 30 : 20)}</button>`;
+    `<button class="speak-btn ${cls || ''}" data-say="${esc(text)}" aria-label="${t('Vorlesen')}">${icon('speaker', cls === 'lg' ? 30 : 20)}</button>`;
   const slowBtn = text =>
-    `<button class="speak-btn slow" data-say="${esc(text)}" data-slow="1" aria-label="Langsam vorlesen">${icon('turtle', 20)}</button>`;
+    `<button class="speak-btn slow" data-say="${esc(text)}" data-slow="1" aria-label="${t('Langsam vorlesen')}">${icon('turtle', 20)}</button>`;
 
-  const PRAISE = ['Richtig!', 'Bagus!', 'Benar!', 'Super!', 'Mantap!', 'Genau!'];
+  const PRAISE = [t('Richtig!'), 'Bagus!', 'Benar!', 'Super!', 'Mantap!', t('Genau!')];
 
   class Session {
     // opts: { mode: 'daily' | 'practice', reviews, learning, news, onExit(summary|null) }
@@ -32,7 +32,7 @@
       root.innerHTML = `
         <div class="session">
           <div class="s-top">
-            <button class="icon-btn" data-s="quit" aria-label="Beenden">${icon('x', 24)}</button>
+            <button class="icon-btn" data-s="quit" aria-label="${t('Beenden')}">${icon('x', 24)}</button>
             <div class="progress" role="progressbar"><i></i></div>
             <div class="s-count"></div>
           </div>
@@ -116,7 +116,7 @@
     }
 
     quit() {
-      if (!confirm('Lerneinheit beenden? Dein Fortschritt ist gespeichert.')) return;
+      if (!confirm(t('Lerneinheit beenden? Dein Fortschritt ist gespeichert.'))) return;
       this.close(null);
     }
     close(summary) {
@@ -135,9 +135,9 @@
       const L = window.LESSONS[task.lesson];
       const u = task.unit;
       this.body.innerHTML = `
-        <div class="ex-kicker"><span class="chip">${esc(u.icon)} Neues Thema: ${esc(u.title)}</span><span class="chip accent">Grammatik</span></div>
+        <div class="ex-kicker"><span class="chip">${esc(u.icon)} ${t('Neues Thema')}: ${esc(u.title)}</span><span class="chip accent">${t('Grammatik')}</span></div>
         <article class="lesson"><h2>${esc(L.title)}</h2>${lessonHTML(L)}</article>`;
-      this.foot.innerHTML = `<button class="btn primary block" data-s="quiz">Weiter zum Mini-Quiz</button>`;
+      this.foot.innerHTML = `<button class="btn primary block" data-s="quiz">${t('Weiter zum Mini-Quiz')}</button>`;
       this.foot.querySelector('[data-s="quiz"]').onclick = () => this.lessonQuiz(task, L, 0, 0);
     }
 
@@ -149,10 +149,10 @@
         this.body.innerHTML = `
           <div class="center-msg">
             <div class="big-emoji">${right === L.quiz.length ? '🎯' : '📘'}</div>
-            <h2>${right} von ${L.quiz.length} richtig</h2>
-            <p class="muted">Die Lektion findest du jederzeit wieder unter <b>Kurs</b>. Jetzt üben wir die neuen Wörter.</p>
+            <h2>${t('{a} von {b} richtig', { a: right, b: L.quiz.length })}</h2>
+            <p class="muted">${t('Die Lektion findest du jederzeit wieder unter <b>Kurs</b>. Jetzt üben wir die neuen Wörter.')}</p>
           </div>`;
-        this.foot.innerHTML = `<button class="btn primary block" data-s="go">Los geht's</button>`;
+        this.foot.innerHTML = `<button class="btn primary block" data-s="go">${t("Los geht's")}</button>`;
         this.awaitNext = () => { this.steps++; this.loop(); };
         this.foot.querySelector('[data-s="go"]').onclick = this.awaitNext;
         return;
@@ -176,9 +176,9 @@
         if (!ok) b.classList.add('wrong');
         this.foot.innerHTML = `
           <div class="fb ${ok ? 'ok' : 'bad'}">
-            <div class="fb-title">${ok ? icon('check') + ' Richtig!' : 'Nicht ganz.'}</div>
+            <div class="fb-title">${ok ? icon('check') + ' ' + t('Richtig!') : t('Nicht ganz.')}</div>
             <div class="fb-text">${inline(why)}</div>
-            <div class="fb-actions"><button class="btn primary" data-s="n">Weiter</button></div>
+            <div class="fb-actions"><button class="btn primary" data-s="n">${t('Weiter')}</button></div>
           </div>`;
         this.awaitNext = () => this.lessonQuiz(task, L, i + 1, right + (ok ? 1 : 0));
         this.foot.querySelector('[data-s="n"]').onclick = this.awaitNext;
@@ -192,27 +192,27 @@
       const isS = card.kind === 's';
       this.body.innerHTML = `
         <div class="ex-kicker">
-          ${task.newUnit && u ? `<span class="chip">${esc(u.icon)} Neues Thema: ${esc(u.title)}</span>` : ''}
-          <span class="chip accent">${isS ? 'Neuer Satz' : card.custom ? 'Dein Wort' : 'Neues Wort'}</span>
+          ${task.newUnit && u ? `<span class="chip">${esc(u.icon)} ${t('Neues Thema')}: ${esc(u.title)}</span>` : ''}
+          <span class="chip accent">${isS ? t('Neuer Satz') : card.custom ? t('Dein Wort') : t('Neues Wort')}</span>
         </div>
         <div class="intro">
           <div class="intro-head">
             <div class="${isS ? 'big-sentence' : 'big-word'}">${esc(card.indo)}</div>
             <div class="speak-pair">${speakBtn(card.indo, 'lg')}${slowBtn(card.indo)}</div>
           </div>
-          ${card.coll && set.colloquial ? `<div class="coll"><span>Alltag</span> ${esc(card.coll)}</div>` : ''}
+          ${card.coll && set.colloquial ? `<div class="coll"><span>${t('Alltag')}</span> ${esc(card.coll)}</div>` : ''}
           <div class="meaning">${esc(card.de)}</div>
           ${card.note ? `<div class="note">💡 ${esc(card.note)}</div>` : ''}
           ${card.ex ? `
             <div class="example">
               <div class="ex-row"><div><div class="ex-id">${esc(card.ex)}</div><div class="ex-de">${esc(card.exde)}</div></div>${speakBtn(card.ex)}</div>
             </div>` : ''}
-          <p class="hint">${isS ? 'Hör dir den Satz an und sprich ihn laut nach.' : 'Tippe auf 🔊 und sprich das Wort laut nach.'}</p>
+          <p class="hint">${isS ? t('Hör dir den Satz an und sprich ihn laut nach.') : t('Tippe auf 🔊 und sprich das Wort laut nach.')}</p>
         </div>`;
       this.foot.innerHTML = `
         <div class="foot-row">
-          <button class="btn ghost" data-s="known">Kenne ich schon</button>
-          <button class="btn primary" data-s="next">Weiter</button>
+          <button class="btn ghost" data-s="known">${t('Kenne ich schon')}</button>
+          <button class="btn primary" data-s="next">${t('Weiter')}</button>
         </div>`;
       if (set.autoplay) setTimeout(() => Speech.speak(card.indo), 250);
       const go = () => {
@@ -314,7 +314,7 @@
 
     kicker(text, card) {
       const u = St.UNITS[card.unit];
-      return `<div class="ex-kicker"><span class="chip">${esc(text)}</span>${u ? `<span class="chip soft">${esc(u.icon)} ${esc(u.title)}</span>` : ''}</div>`;
+      return `<div class="ex-kicker"><span class="chip">${esc(t(text))}</span>${u ? `<span class="chip soft">${esc(u.icon)} ${esc(u.title)}</span>` : ''}</div>`;
     }
 
     // Multiple Choice; options: [{label, ok, say?}]
@@ -391,14 +391,14 @@
         ${this.kicker('Schreib es auf Indonesisch', card)}
         <div class="prompt"><div class="big-de">${esc(card.de)}</div></div>
         <form class="type-form" autocomplete="off">
-          <input class="type-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="Antwort eintippen …" aria-label="Antwort">
-          <button type="button" class="link-btn" data-s="hint">Tipp anzeigen</button>
+          <input class="type-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="${t('Antwort eintippen …')}" aria-label="${t('Antwort')}">
+          <button type="button" class="link-btn" data-s="hint">${t('Tipp anzeigen')}</button>
           <div class="hint-text"></div>
         </form>`;
       this.foot.innerHTML = `
         <div class="foot-row">
-          <button class="btn ghost" data-s="dunno">Weiß ich nicht</button>
-          <button class="btn primary" data-s="check">Prüfen</button>
+          <button class="btn ghost" data-s="dunno">${t('Weiß ich nicht')}</button>
+          <button class="btn primary" data-s="check">${t('Prüfen')}</button>
         </div>`;
       const input = this.body.querySelector('input');
       let hinted = false;
@@ -458,16 +458,16 @@
           <div class="prompt"><div class="${isS ? 'big-sentence' : 'big-word'}">${esc(card.indo)}</div>${speakBtn(card.indo)}</div>
           ${card.ex && !isS ? `<div class="example"><div class="ex-row"><div><div class="ex-id">${esc(card.ex)}</div><div class="ex-de">${esc(card.exde)}</div></div>${speakBtn(card.ex)}</div></div>` : ''}
         </div>
-        <p class="hint">Sprich die Antwort zuerst laut aus – dann aufdecken.</p>`;
-      this.foot.innerHTML = `<button class="btn primary block" data-s="reveal">Aufdecken</button>`;
+        <p class="hint">${t('Sprich die Antwort zuerst laut aus – dann aufdecken.')}</p>`;
+      this.foot.innerHTML = `<button class="btn primary block" data-s="reveal">${t('Aufdecken')}</button>`;
       const reveal = () => {
         this.body.querySelector('.flip-answer').hidden = false;
-        this.body.querySelector('.hint').textContent = 'Hast du es gewusst?';
+        this.body.querySelector('.hint').textContent = t('Hast du es gewusst?');
         Speech.speak(card.indo);
         this.foot.innerHTML = `
           <div class="known-row">
-            <button class="btn known-no" data-g="1">${icon('x', 20)} Nicht gewusst</button>
-            <button class="btn known-yes" data-g="3">${icon('check', 20)} Gewusst</button>
+            <button class="btn known-no" data-g="1">${icon('x', 20)} ${t('Nicht gewusst')}</button>
+            <button class="btn known-yes" data-g="3">${icon('check', 20)} ${t('Gewusst')}</button>
           </div>`;
         this.awaitNext = null;
         this.foot.querySelectorAll('[data-g]').forEach(b => {
@@ -504,14 +504,14 @@
         <div class="prompt"><div class="big-de sentence">${esc(card.de)}</div></div>
         <div class="tiles-answer" aria-live="polite"></div>
         <div class="tiles-bank"></div>`;
-      this.foot.innerHTML = `<button class="btn primary block" data-s="check" disabled>Prüfen</button>`;
+      this.foot.innerHTML = `<button class="btn primary block" data-s="check" disabled>${t('Prüfen')}</button>`;
       const ans = this.body.querySelector('.tiles-answer');
       const bk = this.body.querySelector('.tiles-bank');
       const checkBtn = this.foot.querySelector('[data-s="check"]');
       const draw = () => {
         ans.innerHTML = chosen.length
           ? chosen.map((b, k) => `<button class="tile" data-k="${k}">${esc(b.t)}</button>`).join('')
-          : '<span class="tiles-placeholder">Tippe die Wörter in der richtigen Reihenfolge an</span>';
+          : `<span class="tiles-placeholder">${t('Tippe die Wörter in der richtigen Reihenfolge an')}</span>`;
         bk.innerHTML = bank.map(b => `<button class="tile${b.used ? ' used' : ''}" data-i="${b.i}" ${b.used ? 'disabled' : ''}>${esc(b.t)}</button>`).join('');
         checkBtn.disabled = !chosen.length;
         ans.querySelectorAll('.tile').forEach(el => {
@@ -612,20 +612,20 @@
     feedback(card, g, info, easy) {
       const set = St.S.settings;
       const cls = g >= 3 ? 'ok' : g === 2 ? 'meh' : 'bad';
-      const title = g >= 3 ? `${icon('check')} ${pick(PRAISE)}` : g === 2 ? 'Fast richtig – kleiner Tippfehler' : 'Nicht ganz – so ist es richtig:';
+      const title = g >= 3 ? `${icon('check')} ${pick(PRAISE)}` : g === 2 ? t('Fast richtig – kleiner Tippfehler') : t('Nicht ganz – so ist es richtig:');
       const other = info.other && info.other.id !== card.id
-        ? `<div class="fb-text">„${esc(info.typed.trim())}“ heißt: ${esc(info.other.de)}</div>` : '';
+        ? `<div class="fb-text">${t('„{a}“ heißt: {b}', { a: esc(info.typed.trim()), b: esc(info.other.de) })}</div>` : '';
       const showEx = g < 3 && card.ex && card.kind === 'w';
       this.foot.innerHTML = `
         <div class="fb ${cls}">
           <div class="fb-title">${title}</div>
           <div class="fb-answer"><b>${esc(card.indo)}</b>${speakBtn(card.indo, 'sm')}<span class="fb-de">${esc(card.de)}</span></div>
-          ${card.coll && set.colloquial && card.kind === 'w' ? `<div class="fb-text">Alltag: ${esc(card.coll)}</div>` : ''}
+          ${card.coll && set.colloquial && card.kind === 'w' ? `<div class="fb-text">${t('Alltag')}: ${esc(card.coll)}</div>` : ''}
           ${other}
           ${showEx ? `<div class="fb-text fb-ex">${esc(card.ex)} – <i>${esc(card.exde)}</i></div>` : ''}
           <div class="fb-actions">
-            ${easy ? `<button class="btn ghost sm" data-s="easy">War leicht</button>` : '<span></span>'}
-            <button class="btn primary" data-s="next">Weiter</button>
+            ${easy ? `<button class="btn ghost sm" data-s="easy">${t('War leicht')}</button>` : '<span></span>'}
+            <button class="btn primary" data-s="next">${t('Weiter')}</button>
           </div>
         </div>`;
       if (info.speak && set.autoplay) Speech.speak(card.indo);
@@ -633,7 +633,7 @@
       this.awaitNext = next;
       this.foot.querySelector('[data-s="next"]').onclick = next;
       const eb = this.foot.querySelector('[data-s="easy"]');
-      if (eb) eb.onclick = () => { easy(); St.save(); window.U.toast('Notiert – kommt später wieder.'); next(); };
+      if (eb) eb.onclick = () => { easy(); St.save(); window.U.toast(t('Notiert – kommt später wieder.')); next(); };
       this.foot.querySelector('[data-s="next"]').focus({ preventScroll: true });
     }
 
@@ -643,8 +643,8 @@
       const st = this.stats;
       const secs = Math.round((Date.now() - this.start) / 1000);
       const acc = st.answers ? st.correct / st.answers : 1;
-      const [head, sub] = acc >= 0.85 ? ['Bagus sekali!', 'Sehr gut gemacht!']
-        : acc >= 0.65 ? ['Kerja bagus!', 'Gute Arbeit!'] : ['Tetap semangat!', 'Bleib dran – Fehler gehören dazu!'];
+      const [head, sub] = acc >= 0.85 ? ['Bagus sekali!', t('Sehr gut gemacht!')]
+        : acc >= 0.65 ? ['Kerja bagus!', t('Gute Arbeit!')] : ['Tetap semangat!', t('Bleib dran – Fehler gehören dazu!')];
       const wrong = [...st.wrong].map(id => St.CARDS[id]).filter(Boolean).slice(0, 8);
       const streak = St.streak();
       const moreAvailable = this.mode === 'daily' && St.nextNewIds(1).length > 0;
@@ -657,22 +657,22 @@
           <h2>${head}</h2>
           <p class="muted">${sub}</p>
           <div class="sum-grid">
-            <div class="tile-stat"><b>${Math.max(1, Math.round(secs / 60))}</b><span>Minuten</span></div>
-            <div class="tile-stat"><b>${st.learned}</b><span>neu gelernt</span></div>
-            <div class="tile-stat"><b>${st.reviews}</b><span>wiederholt</span></div>
-            <div class="tile-stat"><b>${Math.round(acc * 100)} %</b><span>richtig</span></div>
+            <div class="tile-stat"><b>${Math.max(1, Math.round(secs / 60))}</b><span>${t('Minuten')}</span></div>
+            <div class="tile-stat"><b>${st.learned}</b><span>${t('neu gelernt')}</span></div>
+            <div class="tile-stat"><b>${st.reviews}</b><span>${t('wiederholt')}</span></div>
+            <div class="tile-stat"><b>${Math.round(acc * 100)} %</b><span>${t('richtig')}</span></div>
           </div>
-          ${streak ? `<div class="streak-line">${icon('flame', 20)} ${streak} ${streak === 1 ? 'Tag' : 'Tage'} in Folge</div>` : ''}
+          ${streak ? `<div class="streak-line">${icon('flame', 20)} ${streak === 1 ? t('1 Tag in Folge') : t('{n} Tage in Folge', { n: streak })}</div>` : ''}
           ${wrong.length ? `
             <div class="wrong-list">
-              <h3>Diese kommen bald wieder</h3>
+              <h3>${t('Diese kommen bald wieder')}</h3>
               ${wrong.map(c => `<div class="wl-row"><span><b>${esc(c.indo)}</b> – ${esc(c.de)}</span>${speakBtn(c.indo, 'sm')}</div>`).join('')}
             </div>` : ''}
         </div>`;
       this.foot.innerHTML = `
         <div class="foot-row">
-          ${moreAvailable ? '<button class="btn ghost" data-s="more">+5 neue Wörter</button>' : ''}
-          <button class="btn primary" data-s="done">Fertig</button>
+          ${moreAvailable ? `<button class="btn ghost" data-s="more">${t('+5 neue Wörter')}</button>` : ''}
+          <button class="btn primary" data-s="done">${t('Fertig')}</button>
         </div>`;
       const done = () => this.close({ more: false });
       this.awaitNext = done;

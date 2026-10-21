@@ -1,5 +1,84 @@
-// Kleine Helfer: HTML-Escaping, Textvergleich, Sprachausgabe, Icons, Lektions-Markup.
+// Kleine Helfer: Sprache der App (Deutsch/Englisch), HTML-Escaping, Textvergleich, Sprachausgabe,
+// Icons, Lektions-Markup.
 (function () {
+  // ---------- Sprache der App: Deutsch oder Englisch ----------
+  // Gespeichert in den Einstellungen. Ohne Einstellung: bisherige Nutzer Deutsch,
+  // neue Nutzer je nach Sprache des Handys.
+  const LANG = (() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('bahasa-indonesisch.v1') || 'null');
+      if (s && s.settings && (s.settings.lang === 'de' || s.settings.lang === 'en')) return s.settings.lang;
+      if (s && s.cards && Object.keys(s.cards).length) return 'de';
+    } catch (e) { /* kein Speicher – Gerätesprache nehmen */ }
+    const nav = typeof navigator !== 'undefined' ? ((navigator.languages && navigator.languages[0]) || navigator.language || '') : '';
+    return !nav || /^de\b/i.test(nav) ? 'de' : 'en';
+  })();
+
+  // Oberflächentexte: Schlüssel ist der deutsche Text, die englische Fassung steht in i18n.en.js.
+  // {name}-Platzhalter werden mit vars gefüllt.
+  const t = (s, vars) => {
+    let r = s;
+    if (LANG === 'en') {
+      const D = window.UI_EN || {};
+      if (Object.prototype.hasOwnProperty.call(D, s)) r = D[s];
+      else (window.__missingEN = window.__missingEN || new Set()).add(s);
+    }
+    return vars ? r.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m)) : r;
+  };
+
+  // Lerninhalte auf Englisch umstellen (Karten, Lektionen, Gespräche) – vor dem Aufbau des Kurses
+  function applyEnglishContent() {
+    const EN = window.COURSE_EN || {};
+    const cells = l => l.split('|').map(x => (x || '').trim());
+    (window.COURSE || []).forEach(u => {
+      const e = EN[u.key];
+      if (!e) return;
+      if (e.title) u.title = e.title;
+      const map = {};
+      e.items.split('\n').forEach(raw => {
+        const l = raw.trim();
+        if (!l || l.startsWith('#')) return;
+        if (l.startsWith('>')) { const [indo, en, note] = cells(l.slice(1)); map['s:' + indo.toLowerCase()] = { en, note }; }
+        else { const [indo, en, exen, note] = cells(l); map['w:' + indo.toLowerCase()] = { en, exen, note }; }
+      });
+      u.items = u.items.split('\n').map(raw => {
+        const l = raw.trim();
+        if (!l || l.startsWith('#')) return raw;
+        if (l.startsWith('>')) {
+          const f = cells(l.slice(1)), m = map['s:' + f[0].toLowerCase()];
+          return m ? '> ' + [f[0], m.en, m.note || ''].join(' | ') : raw;
+        }
+        const f = cells(l), m = map['w:' + f[0].toLowerCase()];
+        return m ? [f[0], m.en, f[2] || '', f[3] || '', f[3] ? (m.exen || '') : '', m.note || ''].join(' | ') : raw;
+      }).join('\n');
+    });
+    const LE = window.LESSONS_EN || {};
+    Object.keys(LE).forEach(k => { if (window.LESSONS && window.LESSONS[k]) Object.assign(window.LESSONS[k], LE[k]); });
+    const DE = window.DIALOGS_EN || {};
+    (window.DIALOGS || []).forEach(d => {
+      const e = DE[d.id];
+      if (!e) return;
+      ['title', 'tags', 'setting', 'goal', 'partner'].forEach(f => { if (e[f]) d[f] = e[f]; });
+      d.steps.forEach((s, i) => {
+        const x = e.steps[i];
+        if (!x) return;
+        ['pd', 'n', 'task', 'tip'].forEach(f => { if (x[f]) s[f] = x[f]; });
+        (s.a || []).forEach((a, j) => {
+          const y = (x.a || [])[j];
+          if (!y) return;
+          if (y.md) a.md = y.md;
+          if (y.l) a.k = a.k.map((k, z) => (y.l[z] ? k.replace(/::.*$/, ':: ' + y.l[z]) : k));
+        });
+      });
+    });
+    const GE = window.DIALOG_GROUPS_EN || {};
+    (window.DIALOG_GROUPS || []).forEach(g => { if (GE[g.key]) g.title = GE[g.key]; });
+  }
+  if (LANG === 'en') applyEnglishContent();
+  if (typeof document !== 'undefined' && document.documentElement) {
+    document.documentElement.lang = LANG;
+    if (LANG === 'en') document.title = 'Bahasa – Learn Indonesian';
+  }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -198,7 +277,7 @@
     const out = [];
     const lines = L.body.trim().split('\n');
     let i = 0;
-    const speakBtn = t => `<button class="speak-btn sm" data-say="${esc(t)}" aria-label="Vorlesen">${icon('speaker', 16)}</button>`;
+    const speakBtn = x => `<button class="speak-btn sm" data-say="${esc(x)}" aria-label="${t('Vorlesen')}">${icon('speaker', 16)}</button>`;
     while (i < lines.length) {
       const line = lines[i].trim();
       if (!line) { i++; continue; }
@@ -262,7 +341,7 @@
   function selectThenCheck(box, holder, onCheck, setEnter) {
     const opts = [...box.querySelectorAll(".opt")];
     let sel = -1;
-    holder.innerHTML = `<button type="button" class="btn primary block big check-btn" data-check disabled>Prüfen</button>`;
+    holder.innerHTML = `<button type="button" class="btn primary block big check-btn" data-check disabled>${t('Prüfen')}</button>`;
     const btn = holder.querySelector("[data-check]");
     const check = () => {
       if (sel < 0 || btn.disabled) return;
@@ -282,5 +361,5 @@
     btn.onclick = check;
   }
 
-  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast, selectThenCheck };
+  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast, selectThenCheck, t, LANG };
 })();

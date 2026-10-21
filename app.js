@@ -1,7 +1,7 @@
 // Oberfläche: Startseite, Kurs, Vokabeltrainer, Gespräche, Wörter, Statistik, Einstellungen –
 // und der Start von Lektionen, Trainer-Runden und Gesprächen.
 (function () {
-  const { esc, inline, icon, Speech, Listen, shuffle, lessonHTML, toast } = window.U;
+  const { esc, inline, icon, Speech, Listen, shuffle, lessonHTML, toast, t, LANG } = window.U;
   const St = window.Store;
   const Ex = window.Examples;
   const Talk = window.Talk;
@@ -31,26 +31,29 @@
   }
 
   function nav() {
-    const item = (t, ic, label) =>
-      `<button class="nav-item${tab === t ? ' active' : ''}" data-act="tab" data-v="${t}" aria-label="${label}">${icon(ic, 24)}<span>${label}</span></button>`;
-    return `<nav class="tabbar">${item('home', 'home', 'Heute')}${item('course', 'course', 'Kurs')}${item('trainer', 'cards', 'Trainer')}${item('talk', 'chat', 'Gespräche')}${item('words', 'words', 'Wörter')}</nav>`;
+    const item = (v, ic, label) =>
+      `<button class="nav-item${tab === v ? ' active' : ''}" data-act="tab" data-v="${v}" aria-label="${label}">${icon(ic, 24)}<span>${label}</span></button>`;
+    return `<nav class="tabbar">${item('home', 'home', t('Heute'))}${item('course', 'course', t('Kurs'))}${item('trainer', 'cards', t('Trainer'))}${item('talk', 'chat', t('Gespräche'))}${item('words', 'words', t('Wörter'))}</nav>`;
   }
 
   // Unterseiten ohne Tableiste, mit Zurück-Knopf
   const SUBPAGES = ['settings', 'stats'];
-  function go(t) {
-    if (SUBPAGES.includes(t)) history.pushState({ v: t }, '');
-    tab = t;
+  function go(v) {
+    if (SUBPAGES.includes(v)) history.pushState({ v }, '');
+    tab = v;
     render();
   }
+
+  // Mehrzahl: plural(3, 'Karte', 'Karten') → „3 Karten“ (in der Sprache der App)
+  const plural = (n, one, many) => (n === 1 ? t('1 ' + one) : t('{n} ' + many, { n }));
 
   // ---------- Startseite ----------
   function greeting() {
     const h = new Date().getHours();
-    if (h < 11) return ['Selamat pagi!', 'Guten Morgen'];
-    if (h < 15) return ['Selamat siang!', 'Guten Tag'];
-    if (h < 18) return ['Selamat sore!', 'Guten Nachmittag'];
-    return ['Selamat malam!', 'Guten Abend'];
+    if (h < 11) return ['Selamat pagi!', t('Guten Morgen')];
+    if (h < 15) return ['Selamat siang!', t('Guten Tag')];
+    if (h < 18) return ['Selamat sore!', t('Guten Nachmittag')];
+    return ['Selamat malam!', t('Guten Abend')];
   }
 
   function ring(p) {
@@ -79,64 +82,65 @@
       today = `
         <div class="today-done">
           <div class="big-emoji">${p.courseDone ? '🏆' : '✅'}</div>
-          <h2>${p.courseDone ? 'Kurs abgeschlossen!' : 'Geschafft für heute!'}</h2>
-          <p class="muted">${p.courseDone ? 'Alle Kurswörter sind gelernt. Der Vokabeltrainer wiederholt sie weiter – und du kannst eigene Wörter hinzufügen.' : 'Morgen warten neue Wörter und die passenden Wiederholungen. Sampai besok!'}</p>
+          <h2>${p.courseDone ? t('Kurs abgeschlossen!') : t('Geschafft für heute!')}</h2>
+          <p class="muted">${p.courseDone ? t('Alle Kurswörter sind gelernt. Der Vokabeltrainer wiederholt sie weiter – und du kannst eigene Wörter hinzufügen.') : t('Morgen warten neue Wörter und die passenden Wiederholungen. Sampai besok!')}</p>
           <div class="btn-stack">
-            ${p.courseDone ? '' : '<button class="btn primary block" data-act="more">+5 neue Wörter</button>'}
-            ${learnedAny ? '<button class="btn ghost block" data-act="extra">Extra-Runde: schwache Wörter</button>' : ''}
+            ${p.courseDone ? '' : `<button class="btn primary block" data-act="more">${t('+5 neue Wörter')}</button>`}
+            ${learnedAny ? `<button class="btn ghost block" data-act="extra">${t('Extra-Runde: schwache Wörter')}</button>` : ''}
           </div>
         </div>`;
     } else {
       // Empfehlung: erst wiederholen (Trainer), dann Neues (Lektion)
       const trainerFirst = !p.trainerDone && p.wordDue > 0;
       const lessonParts = [];
-      if (p.newLeft) lessonParts.push(`${p.newLeft} neue ${p.newLeft === 1 ? 'Karte' : 'Karten'}`);
-      if (p.learning) lessonParts.push(`${p.learning} im Lernen`);
-      if (p.sentDue) lessonParts.push(`${p.sentDue} ${p.sentDue === 1 ? 'Satz' : 'Sätze'}`);
+      if (p.newLeft) lessonParts.push(plural(p.newLeft, 'neue Karte', 'neue Karten'));
+      if (p.learning) lessonParts.push(t('{n} im Lernen', { n: p.learning }));
+      if (p.sentDue) lessonParts.push(plural(p.sentDue, 'Satz', 'Sätze'));
       const trainerN = p.wordDue + p.tLearning + p.tNew;
       const trainerText = trainerN
-        ? `${trainerN} ${trainerN === 1 ? 'Karte' : 'Karten'}${p.tNew ? ` · ${p.tNew} neu` : ''}`
-        : (vc.words ? 'alles wiederholt' : 'füllt sich mit jeder Lektion');
+        ? `${plural(trainerN, 'Karte', 'Karten')}${p.tNew ? ` · ${t('{n} neu', { n: p.tNew })}` : ''}`
+        : (vc.words ? t('alles wiederholt') : t('füllt sich mit jeder Lektion'));
       const task = (act, emoji, title, text, done, primary) => `
         <div class="task${done ? ' done' : ''}">
           <span class="task-ic">${emoji}</span>
           <span class="grow"><b>${title}</b><span class="muted">${text}</span></span>
-          ${done ? `<span class="task-check">${icon('check', 20)}</span>` : `<button class="btn ${primary ? 'primary' : 'ghost'} sm" data-act="${act}">Starten</button>`}
+          ${done ? `<span class="task-check">${icon('check', 20)}</span>` : `<button class="btn ${primary ? 'primary' : 'ghost'} sm" data-act="${act}">${t('Starten')}</button>`}
         </div>`;
       today = `
         <div class="today-row">
           <div class="ring-wrap">${ring(p.progress)}<span>${Math.round(p.progress * 100)}%</span></div>
           <div>
-            <h2>Heute</h2>
-            <p class="muted">ca. ${p.minutes} Min.</p>
+            <h2>${t('Heute')}</h2>
+            <p class="muted">${t('ca. {n} Min.', { n: p.minutes })}</p>
           </div>
         </div>
-        ${task('trainer', '🃏', 'Vokabeltrainer', trainerText, p.trainerDone, trainerFirst)}
-        ${task('start', '📘', fresh ? 'Erste Lektion' : 'Lektion', lessonParts.join(' · ') || 'erledigt', p.lessonDone, !trainerFirst)}`;
+        ${task('trainer', '🃏', t('Vokabeltrainer'), trainerText, p.trainerDone, trainerFirst)}
+        ${task('start', '📘', fresh ? t('Erste Lektion') : t('Lektion'), lessonParts.join(' · ') || t('erledigt'), p.lessonDone, !trainerFirst)}`;
     }
 
     const banners = [];
-    if (swWaiting) banners.push(`<div class="banner"><span>✨ Eine neue Version ist da.</span><button class="btn sm primary" data-act="sw-update">Aktualisieren</button></div>`);
+    if (swWaiting) banners.push(`<div class="banner"><span>✨ ${t('Eine neue Version ist da.')}</span><button class="btn sm primary" data-act="sw-update">${t('Aktualisieren')}</button></div>`);
     if (Speech.missing && !S.ui.voiceHidden) {
       const step = S.ui.voiceStep || 0;
-      banners.push(`<div class="banner"><span>🔈 <b>Aussprache einrichten</b> – ${step ? `weiter bei Schritt ${step + 1}` : 'einmalig, ca. 2 Minuten'}.</span><button class="btn sm primary" data-act="voice-help">${step ? 'Weiter' : 'Einrichten'}</button><button class="icon-btn sm" data-act="hide" data-v="voiceHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
+      banners.push(`<div class="banner"><span>🔈 <b>${t('Aussprache einrichten')}</b> – ${step ? t('weiter bei Schritt {n}', { n: step + 1 }) : t('einmalig, ca. 2 Minuten')}.</span><button class="btn sm primary" data-act="voice-help">${step ? t('Weiter') : t('Einrichten')}</button><button class="icon-btn sm" data-act="hide" data-v="voiceHidden" aria-label="${t('Ausblenden')}">${icon('x', 18)}</button></div>`);
     }
     if (!standalone() && !S.ui.installHidden) {
-      banners.push(`<div class="banner"><span>📲 Leg die App auf deinen Homescreen – dann läuft sie wie eine echte App, auch offline.</span><button class="btn sm ghost" data-act="install-help">Anleitung</button><button class="icon-btn sm" data-act="hide" data-v="installHidden" aria-label="Ausblenden">${icon('x', 18)}</button></div>`);
+      banners.push(`<div class="banner"><span>📲 ${t('Leg die App auf deinen Homescreen – dann läuft sie wie eine echte App, auch offline.')}</span><button class="btn sm ghost" data-act="install-help">${t('Anleitung')}</button><button class="icon-btn sm" data-act="hide" data-v="installHidden" aria-label="${t('Ausblenden')}">${icon('x', 18)}</button></div>`);
     }
 
     const welcome = fresh && !S.ui.welcomed ? `
       <section class="card welcome">
         <h2>Selamat datang! 👋</h2>
-        <p>Willkommen bei deinem Indonesisch-Kurs. So funktioniert's:</p>
+        <p>${t("Willkommen bei deinem Indonesisch-Kurs. So funktioniert's:")}</p>
         <ul>
-          <li><b>Jeden Tag ca. ${S.settings.minutes} Minuten.</b> Die App plant alles für dich.</li>
-          <li><b>Wiederholung zur richtigen Zeit:</b> Was du sicher kannst, kommt seltener. Was schwerfällt, kommt öfter.</li>
-          <li><b>Sie passt sich dir an:</b> Lernst du schnell, kommen mehr neue Wörter. Wird es zu viel, weniger.</li>
-          <li><b>Grammatik in kleinen Häppchen</b>, immer dann, wenn sie gebraucht wird.</li>
-          <li><b>Laut nachsprechen!</b> Tippe auf 🔊 – das macht dich am schnellsten sprechfähig.</li>
+          <li>${t('<b>Jeden Tag ca. {n} Minuten.</b> Die App plant alles für dich.', { n: S.settings.minutes })}</li>
+          <li>${t('<b>Wiederholung zur richtigen Zeit:</b> Was du sicher kannst, kommt seltener. Was schwerfällt, kommt öfter.')}</li>
+          <li>${t('<b>Sie passt sich dir an:</b> Lernst du schnell, kommen mehr neue Wörter. Wird es zu viel, weniger.')}</li>
+          <li>${t('<b>Grammatik in kleinen Häppchen</b>, immer dann, wenn sie gebraucht wird.')}</li>
+          <li>${t('<b>Laut nachsprechen!</b> Tippe auf 🔊 – das macht dich am schnellsten sprechfähig.')}</li>
         </ul>
-        <p class="muted">Du kennst schon ein paar Wörter? Tippe bei neuen Wörtern einfach auf „Kenne ich schon“.</p>
+        <p class="muted">${t('Du kennst schon ein paar Wörter? Tippe bei neuen Wörtern einfach auf „Kenne ich schon“.')}</p>
+        <div class="lang-pick"><span class="muted small">${t('Sprache der App')}:</span>${langSeg()}</div>
       </section>` : '';
 
     // Level 2 erreicht: einmal feiern
@@ -144,9 +148,9 @@
     const level2 = unit.level === 2 && lp1.done === lp1.total && !S.ui.level2Seen ? `
       <section class="card level-up">
         <div class="big-emoji">🎉</div>
-        <h2>Level 1 geschafft!</h2>
-        <p>Du hast alle ${lp1.total} Karten der Grundlagen gelernt. Ab jetzt geht es mit <b>Level 2 – Fortgeschritten</b> weiter: Leben in Indonesien, Beruf, Umgangssprache und eigene Meinungen.</p>
-        <button class="btn primary block" data-act="hide" data-v="level2Seen">Los geht's!</button>
+        <h2>${t('Level 1 geschafft!')}</h2>
+        <p>${t('Du hast alle {n} Karten der Grundlagen gelernt. Ab jetzt geht es mit <b>Level 2 – Fortgeschritten</b> weiter: Leben in Indonesien, Beruf, Umgangssprache und eigene Meinungen.', { n: lp1.total })}</p>
+        <button class="btn primary block" data-act="hide" data-v="level2Seen">${t("Los geht's!")}</button>
       </section>` : '';
 
     // Gesprächsvorschlag, sobald ein paar Wörter sitzen
@@ -155,7 +159,7 @@
       <section class="card talk-now" data-act="dialog" data-v="${esc(dlg.id)}" role="button" tabindex="0">
         <div class="unit-icon">${esc(dlg.icon)}</div>
         <div class="grow">
-          <div class="label">Gespräch üben</div>
+          <div class="label">${t('Gespräch üben')}</div>
           <div class="unit-title">${esc(dlg.title)}</div>
           <div class="muted small">${esc(Talk.fill(dlg.goal, Talk.profile()))}</div>
         </div>
@@ -169,8 +173,8 @@
       <header class="topbar">
         <div><div class="greet">${hi}</div><div class="muted">${hiDe}</div></div>
         <div class="topbar-actions">
-          <button class="icon-btn" data-act="tab" data-v="stats" aria-label="Statistik">${icon('stats', 24)}</button>
-          <button class="icon-btn" data-act="tab" data-v="settings" aria-label="Einstellungen">${icon('settings', 24)}</button>
+          <button class="icon-btn" data-act="tab" data-v="stats" aria-label="${t('Statistik')}">${icon('stats', 24)}</button>
+          <button class="icon-btn" data-act="tab" data-v="settings" aria-label="${t('Einstellungen')}">${icon('settings', 24)}</button>
         </div>
       </header>
       ${banners.join('')}
@@ -178,17 +182,17 @@
       <section class="card today">${today}</section>
       ${welcome}
       <section class="stat-row">
-        <div class="mini-stat"><span class="flame${streak ? ' on' : ''}">${icon('flame', 22)}</span><b>${streak}</b><span>${streak === 1 ? 'Tag' : 'Tage'} Serie</span></div>
-        <div class="mini-stat"><b>${vc.words}</b><span>Wörter</span></div>
+        <div class="mini-stat"><span class="flame${streak ? ' on' : ''}">${icon('flame', 22)}</span><b>${streak}</b><span>${streak === 1 ? t('Tag Serie') : t('Tage Serie')}</span></div>
+        <div class="mini-stat"><b>${vc.words}</b><span>${t('Wörter')}</span></div>
         <div class="mini-stat"><b>${lvl.code}</b><span>${lvl.name}</span></div>
       </section>
       <section class="card unit-now" data-act="unit" data-i="${unit.index}" role="button" tabindex="0">
         <div class="unit-icon">${esc(unit.icon)}</div>
         <div class="grow">
-          <div class="label">Level ${unit.level} · Thema ${posInLevel} von ${levelUnits.length}</div>
+          <div class="label">${t('Level {l} · Thema {n} von {m}', { l: unit.level, n: posInLevel, m: levelUnits.length })}</div>
           <div class="unit-title">${esc(unit.title)}</div>
           <div class="bar"><i style="width:${(up.done / up.total) * 100}%"></i></div>
-          <div class="muted small">${up.done} von ${up.total} gelernt${lesson ? ` · 📘 ${esc(lesson.title)}` : ''}</div>
+          <div class="muted small">${t('{a} von {b} gelernt', { a: up.done, b: up.total })}${lesson ? ` · 📘 ${esc(lesson.title)}` : ''}</div>
         </div>
       </section>
       ${talkCard}
@@ -199,47 +203,47 @@
   function viewTrainer() {
     const S = St.S;
     const p = St.planInfo();
-    const t = St.today();
+    const today = St.today();
     let total = 0, tomorrow = 0, strong = 0;
     Object.keys(S.cards).forEach(id => {
       const c = S.cards[id], k = St.CARDS[id];
       if (!k || k.kind !== 'w') return;
       total++;
-      if (c.st === 'R' && c.due === t + 1) tomorrow++;
+      if (c.st === 'R' && c.due === today + 1) tomorrow++;
       if (c.st === 'R' && c.s >= 21) strong++;
     });
     const ready = p.wordDue + p.tLearning + p.tNew;
     const hero = ready ? `
       <div class="deck"><span>${ready}</span></div>
-      <h2>${ready} ${ready === 1 ? 'Karte' : 'Karten'} bereit</h2>
-      <p class="muted">${p.tNew ? `davon ${p.tNew} neu · ` : ''}in Runden à 20 Karten</p>
-      <button class="btn primary block big" data-act="trainer">Trainer starten</button>` : `
+      <h2>${ready === 1 ? t('1 Karte bereit') : t('{n} Karten bereit', { n: ready })}</h2>
+      <p class="muted">${p.tNew ? t('davon {n} neu', { n: p.tNew }) + ' · ' : ''}${t('in Runden à 20 Karten')}</p>
+      <button class="btn primary block big" data-act="trainer">${t('Trainer starten')}</button>` : `
       <div class="big-emoji">${total ? '✅' : '🃏'}</div>
-      <h2>${total ? 'Alles wiederholt!' : 'Dein Trainer ist noch leer'}</h2>
-      <p class="muted">${total ? `Morgen ${tomorrow === 1 ? 'ist' : 'sind'} <b>${tomorrow}</b> ${tomorrow === 1 ? 'Karte' : 'Karten'} dran.` : 'Jedes Wort, das du in einer Lektion lernst, kommt automatisch hierher. Oder füge eigene Vokabeln hinzu.'}</p>
-      ${total >= 5 ? '<button class="btn ghost block" data-act="extra">Extra-Runde: schwache Wörter</button>' : ''}`;
+      <h2>${total ? t('Alles wiederholt!') : t('Dein Trainer ist noch leer')}</h2>
+      <p class="muted">${total ? (tomorrow === 1 ? t('Morgen ist <b>1</b> Karte dran.') : t('Morgen sind <b>{n}</b> Karten dran.', { n: tomorrow })) : t('Jedes Wort, das du in einer Lektion lernst, kommt automatisch hierher. Oder füge eigene Vokabeln hinzu.')}</p>
+      ${total >= 5 ? `<button class="btn ghost block" data-act="extra">${t('Extra-Runde: schwache Wörter')}</button>` : ''}`;
     const customs = S.custom.slice().reverse();
     return `
-      <header class="topbar"><h1>Vokabeltrainer</h1><button class="icon-btn" data-act="addword" aria-label="Eigene Vokabel hinzufügen">${icon('plus', 24)}</button></header>
+      <header class="topbar"><h1>${t('Vokabeltrainer')}</h1><button class="icon-btn" data-act="addword" aria-label="${t('Eigene Vokabel hinzufügen')}">${icon('plus', 24)}</button></header>
       <section class="card trainer-hero">${hero}</section>
       <section class="stat-row">
-        <div class="mini-stat"><b>${total}</b><span>Karten</span></div>
-        <div class="mini-stat"><b>${tomorrow}</b><span>morgen</span></div>
-        <div class="mini-stat"><b>${strong}</b><span>sicher</span></div>
+        <div class="mini-stat"><b>${total}</b><span>${t('Karten')}</span></div>
+        <div class="mini-stat"><b>${tomorrow}</b><span>${t('morgen')}</span></div>
+        <div class="mini-stat"><b>${strong}</b><span>${t('sicher')}</span></div>
       </section>
       <section class="card">
-        <div class="card-head"><h3>Eigene Vokabeln</h3><button class="btn ghost sm" data-act="addword">${icon('plus', 16)} Hinzufügen</button></div>
+        <div class="card-head"><h3>${t('Eigene Vokabeln')}</h3><button class="btn ghost sm" data-act="addword">${icon('plus', 16)} ${t('Hinzufügen')}</button></div>
         ${customs.length ? `<div class="word-list">${customs.map(c => wordRow(St.CARDS[c.id])).join('')}</div>`
-          : '<p class="muted small">Hast du unterwegs ein neues Wort gehört? Füge es hinzu – der Trainer zeigt es dir mit Sätzen aus Wörtern, die du schon kennst.</p>'}
+          : `<p class="muted small">${t('Hast du unterwegs ein neues Wort gehört? Füge es hinzu – der Trainer zeigt es dir mit Sätzen aus Wörtern, die du schon kennst.')}</p>`}
       </section>
       <section class="card">
         <details>
-          <summary><b>So funktioniert der Trainer</b></summary>
+          <summary><b>${t('So funktioniert der Trainer')}</b></summary>
           <div class="method">
-            <p><b>Karteikarten:</b> Schau dir die Vorderseite an, sag die Antwort laut und dreh die Karte um. Dann wischst du sie <b>nach rechts</b>, wenn du es gewusst hast, oder <b>nach links</b>, wenn nicht. Alternativ tippst du auf die Knöpfe darunter.</p>
-            <p><b>Beide Richtungen:</b> Mal siehst du das indonesische Wort, mal das deutsche – so lernst du verstehen <i>und</i> selbst sprechen.</p>
-            <p><b>Automatisch befüllt:</b> Jedes Wort aus den Lektionen landet hier. Gekonnte Wörter kommen in immer größeren Abständen, vergessene schon bald wieder.</p>
-            <p><b>Passende Beispielsätze:</b> Zu jeder Karte zeigt die App den Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter sind unterstrichen – antippen zeigt die Übersetzung.</p>
+            <p>${t('<b>Karteikarten:</b> Schau dir die Vorderseite an, sag die Antwort laut und dreh die Karte um. Dann wischst du sie <b>nach rechts</b>, wenn du es gewusst hast, oder <b>nach links</b>, wenn nicht. Alternativ tippst du auf die Knöpfe darunter.')}</p>
+            <p>${t('<b>Beide Richtungen:</b> Mal siehst du das indonesische Wort, mal das deutsche – so lernst du verstehen <i>und</i> selbst sprechen.')}</p>
+            <p>${t('<b>Automatisch befüllt:</b> Jedes Wort aus den Lektionen landet hier. Gekonnte Wörter kommen in immer größeren Abständen, vergessene schon bald wieder.')}</p>
+            <p>${t('<b>Passende Beispielsätze:</b> Zu jeder Karte zeigt die App den Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter sind unterstrichen – antippen zeigt die Übersetzung.')}</p>
           </div>
         </details>
       </section>`;
@@ -263,8 +267,8 @@
         </button>`;
     };
     const LEVELS = [
-      [1, 'Level 1 – Grundlagen', 'A1–A2 · Alltag, Essen, Unterwegs, erste Gespräche'],
-      [2, 'Level 2 – Fortgeschritten', 'B1–B2 · Leben in Indonesien, Beruf, Umgangssprache, Meinungen'],
+      [1, t('Level 1 – Grundlagen'), t('A1–A2 · Alltag, Essen, Unterwegs, erste Gespräche')],
+      [2, t('Level 2 – Fortgeschritten'), t('B1–B2 · Leben in Indonesien, Beruf, Umgangssprache, Meinungen')],
     ];
     const blocks = LEVELS.map(([lv, title, sub]) => {
       const units = St.UNITS.filter(u => u.level === lv);
@@ -277,7 +281,7 @@
             <div class="grow"><h2>${title}</h2><span class="muted small">${sub}</span></div>
             <span class="pill${lp.done === lp.total ? '' : ' accent'}">${Math.round(lp.done / lp.total * 100)} %</span>
           </div>
-          ${locked ? '<p class="muted small level-note">Startet automatisch nach Level 1 – du kannst schon reinschauen.</p>' : ''}
+          ${locked ? `<p class="muted small level-note">${t('Startet automatisch nach Level 1 – du kannst schon reinschauen.')}</p>` : ''}
           <div class="unit-list">${units.map((u, k) => row(u, k + 1)).join('')}</div>
         </section>`;
     }).join('');
@@ -285,24 +289,24 @@
       <div class="unit-list">
         <button class="unit-row" data-act="unit" data-i="-1">
           <span class="unit-num">★</span>
-          <span class="grow"><span class="unit-title">Eigene Wörter</span><span class="muted small">${St.S.custom.length} Wörter</span></span>
+          <span class="grow"><span class="unit-title">${t('Eigene Wörter')}</span><span class="muted small">${plural(St.S.custom.length, 'Wort', 'Wörter')}</span></span>
         </button>
       </div>` : '';
     return `
-      <header class="topbar"><h1>Kurs</h1></header>
-      <p class="muted intro-text">${St.UNITS.length} Themen in zwei Levels, vom Wichtigsten zum Spezielleren. Neue Wörter kommen automatisch in dieser Reihenfolge – du kannst trotzdem überall hineinschauen und jede Grammatik-Lektion lesen.</p>
+      <header class="topbar"><h1>${t('Kurs')}</h1></header>
+      <p class="muted intro-text">${t('{n} Themen in zwei Levels, vom Wichtigsten zum Spezielleren. Neue Wörter kommen automatisch in dieser Reihenfolge – du kannst trotzdem überall hineinschauen und jede Grammatik-Lektion lesen.', { n: St.UNITS.length })}</p>
       ${custom}${blocks}`;
   }
 
   function unitSheet(i) {
     const isCustom = i === -1;
-    const u = isCustom ? { title: 'Eigene Wörter', icon: '★', ids: St.customIds(), lesson: null } : St.UNITS[i];
+    const u = isCustom ? { title: t('Eigene Wörter'), icon: '★', ids: St.customIds(), lesson: null } : St.UNITS[i];
     const L = u.lesson && window.LESSONS[u.lesson];
     const rows = u.ids.map(id => wordRow(St.CARDS[id])).join('');
     openSheet(`
       <div class="sheet-head"><h2>${esc(u.icon)} ${esc(u.title)}</h2>${closeBtn()}</div>
-      ${L ? `<button class="lesson-link" data-act="lesson" data-v="${u.lesson}">${icon('book', 20)}<span>Grammatik: ${esc(L.title)}</span>${St.S.lessons[u.lesson] ? '<span class="pill">gelesen</span>' : '<span class="pill accent">neu</span>'}</button>` : ''}
-      <div class="word-list">${rows || '<p class="muted">Noch keine Wörter.</p>'}</div>`);
+      ${L ? `<button class="lesson-link" data-act="lesson" data-v="${u.lesson}">${icon('book', 20)}<span>${t('Grammatik')}: ${esc(L.title)}</span>${St.S.lessons[u.lesson] ? `<span class="pill">${t('gelesen')}</span>` : `<span class="pill accent">${t('neu')}</span>`}</button>` : ''}
+      <div class="word-list">${rows || `<p class="muted">${t('Noch keine Wörter.')}</p>`}</div>`);
   }
 
   function lessonSheet(key) {
@@ -315,11 +319,11 @@
 
   // „Level 2 · Thema 5“
   function unitLabel(u) {
-    return `Level ${u.level} · Thema ${St.UNITS.filter(x => x.level === u.level).indexOf(u) + 1}`;
+    return t('Level {l} · Thema {n}', { l: u.level, n: St.UNITS.filter(x => x.level === u.level).indexOf(u) + 1 });
   }
 
   // ---------- Wörter ----------
-  const STRENGTH = ['neu', 'lernt', 'frisch', 'gefestigt', 'sicher'];
+  const STRENGTH = [t('neu'), t('lernt'), t('frisch'), t('gefestigt'), t('sicher')];
   function wordRow(c) {
     if (!c) return '';
     const s = St.strength(c.id);
@@ -352,18 +356,18 @@
   function wordListHTML() {
     const ids = filteredWords();
     if (!ids.length) {
-      return `<p class="muted empty">${wordFilter.q ? 'Nichts gefunden.' : Object.keys(St.S.cards).length ? 'Keine Wörter in dieser Auswahl.' : 'Hier erscheinen alle Wörter, die du gelernt hast. Starte deine erste Lerneinheit!'}</p>`;
+      return `<p class="muted empty">${wordFilter.q ? t('Nichts gefunden.') : Object.keys(St.S.cards).length ? t('Keine Wörter in dieser Auswahl.') : t('Hier erscheinen alle Wörter, die du gelernt hast. Starte deine erste Lerneinheit!')}</p>`;
     }
     const shown = ids.slice(0, 250).map(id => wordRow(St.CARDS[id])).join('');
-    return shown + (ids.length > 250 ? `<p class="muted small center">… und ${ids.length - 250} weitere – nutze die Suche.</p>` : '');
+    return shown + (ids.length > 250 ? `<p class="muted small center">${t('… und {n} weitere – nutze die Suche.', { n: ids.length - 250 })}</p>` : '');
   }
 
   function viewWords() {
     const chip = (f, label) => `<button class="chip-btn${wordFilter.f === f ? ' active' : ''}" data-act="filter" data-v="${f}">${label}</button>`;
     return `
-      <header class="topbar"><h1>Wörter</h1><button class="icon-btn" data-act="addword" aria-label="Eigenes Wort hinzufügen">${icon('plus', 24)}</button></header>
-      <div class="search">${icon('search', 20)}<input type="search" placeholder="Suchen – Deutsch oder Indonesisch" value="${esc(wordFilter.q)}" aria-label="Suchen"></div>
-      <div class="chips">${chip('all', 'Alle')}${chip('weak', 'Schwierig')}${chip('strong', 'Sicher')}${chip('sent', 'Sätze')}${chip('custom', 'Eigene')}</div>
+      <header class="topbar"><h1>${t('Wörter')}</h1><button class="icon-btn" data-act="addword" aria-label="${t('Eigenes Wort hinzufügen')}">${icon('plus', 24)}</button></header>
+      <div class="search">${icon('search', 20)}<input type="search" placeholder="${t('Suchen – Deutsch oder Indonesisch')}" value="${esc(wordFilter.q)}" aria-label="${t('Suchen')}"></div>
+      <div class="chips">${chip('all', t('Alle'))}${chip('weak', t('Schwierig'))}${chip('strong', t('Sicher'))}${chip('sent', t('Sätze'))}${chip('custom', t('Eigene'))}</div>
       <div class="word-list" id="word-list">${wordListHTML()}</div>`;
   }
   function bindWords() {
@@ -376,11 +380,11 @@
 
   function relDays(n) {
     const d = n - St.today();
-    if (d <= 0) return 'heute';
-    if (d === 1) return 'morgen';
-    if (d < 30) return `in ${d} Tagen`;
-    if (d < 60) return 'in ca. einem Monat';
-    return `in ca. ${Math.round(d / 30)} Monaten`;
+    if (d <= 0) return t('heute');
+    if (d === 1) return t('morgen');
+    if (d < 30) return t('in {n} Tagen', { n: d });
+    if (d < 60) return t('in ca. einem Monat');
+    return t('in ca. {n} Monaten', { n: Math.round(d / 30) });
   }
 
   function wordSheet(id) {
@@ -393,71 +397,71 @@
     if (!st) {
       const pulled = St.S.pull.includes(id) || c.custom;
       info = pulled
-        ? '<p class="muted">Kommt im nächsten Trainer-Durchgang dran.</p>'
-        : `<p class="muted">Noch nicht gelernt – kommt in ${unitLabel(u)} (${esc(u.title)}) dran.</p>
-           ${c.kind === 'w' ? `<button class="btn ghost block" data-act="pull" data-id="${esc(id)}">${icon('cards', 18)} Jetzt in den Vokabeltrainer holen</button>` : ''}`;
-    } else if (st.st === 'L') info = '<p class="muted">Gerade im Lernen.</p>';
+        ? `<p class="muted">${t('Kommt im nächsten Trainer-Durchgang dran.')}</p>`
+        : `<p class="muted">${t('Noch nicht gelernt – kommt in {u} ({t}) dran.', { u: unitLabel(u), t: esc(u.title) })}</p>
+           ${c.kind === 'w' ? `<button class="btn ghost block" data-act="pull" data-id="${esc(id)}">${icon('cards', 18)} ${t('Jetzt in den Vokabeltrainer holen')}</button>` : ''}`;
+    } else if (st.st === 'L') info = `<p class="muted">${t('Gerade im Lernen.')}</p>`;
     else {
       const r = Srs.currentRecall(st, Date.now(), St.S.learner.m);
       info = `
         <div class="kv">
-          <div><span>Erinnerung jetzt</span><b>${Math.round(r * 100)} %</b></div>
-          <div><span>Nächste Wiederholung</span><b>${relDays(st.due)}</b></div>
-          <div><span>Wiederholt</span><b>${st.reps}×</b></div>
-          <div><span>Vergessen</span><b>${st.lapses || 0}×</b></div>
+          <div><span>${t('Erinnerung jetzt')}</span><b>${Math.round(r * 100)} %</b></div>
+          <div><span>${t('Nächste Wiederholung')}</span><b>${relDays(st.due)}</b></div>
+          <div><span>${t('Wiederholt')}</span><b>${st.reps}×</b></div>
+          <div><span>${t('Vergessen')}</span><b>${st.lapses || 0}×</b></div>
         </div>`;
     }
     // Wörter: Beispielsatz, den man mit dem aktuellen Wortschatz am besten versteht
     const example = c.kind === 'w' ? Ex.blockHTML(Ex.forCard(c)) : '';
     const posPicker = c.custom ? `
-      <div class="field-label">Wortart <small>– bestimmt die automatischen Beispielsätze</small></div>
+      <div class="field-label">${t('Wortart')} <small>– ${t('bestimmt die automatischen Beispielsätze')}</small></div>
       <div class="seg">${Object.keys(Ex.POS_LABEL).map(k =>
         `<button class="seg-btn${c.pos === k ? ' active' : ''}" data-act="pos" data-id="${esc(id)}" data-v="${k}">${Ex.POS_LABEL[k]}</button>`).join('')}</div>` : '';
     openSheet(`
-      <div class="sheet-head"><span class="muted small">${u ? esc(u.icon + ' ' + u.title) : '★ Eigenes Wort'}</span>${closeBtn()}</div>
+      <div class="sheet-head"><span class="muted small">${u ? esc(u.icon + ' ' + u.title) : '★ ' + t('Eigenes Wort')}</span>${closeBtn()}</div>
       <div class="word-detail">
         <div class="intro-head"><div class="${c.kind === 's' ? 'big-sentence' : 'big-word'}">${esc(c.indo)}</div>
-          <div class="speak-pair"><button class="speak-btn lg" data-say="${esc(c.indo)}" aria-label="Vorlesen">${icon('speaker', 30)}</button><button class="speak-btn slow" data-say="${esc(c.indo)}" data-slow="1" aria-label="Langsam">${icon('turtle', 20)}</button></div></div>
-        ${c.coll && set.colloquial ? `<div class="coll"><span>Alltag</span> ${esc(c.coll)}</div>` : ''}
+          <div class="speak-pair"><button class="speak-btn lg" data-say="${esc(c.indo)}" aria-label="${t('Vorlesen')}">${icon('speaker', 30)}</button><button class="speak-btn slow" data-say="${esc(c.indo)}" data-slow="1" aria-label="${t('Langsam vorlesen')}">${icon('turtle', 20)}</button></div></div>
+        ${c.coll && set.colloquial ? `<div class="coll"><span>${t('Alltag')}</span> ${esc(c.coll)}</div>` : ''}
         <div class="meaning">${esc(c.de)}</div>
         ${c.note ? `<div class="note">💡 ${esc(c.note)}</div>` : ''}
         ${example}
         ${posPicker}
         ${info}
         <div class="btn-stack">
-          ${st ? `<button class="btn ghost block" data-act="reset-card" data-id="${esc(id)}">Neu lernen</button>` : ''}
-          ${c.custom ? `<button class="btn danger block" data-act="delete-custom" data-id="${esc(id)}">${icon('trash', 18)} Wort löschen</button>` : ''}
+          ${st ? `<button class="btn ghost block" data-act="reset-card" data-id="${esc(id)}">${t('Neu lernen')}</button>` : ''}
+          ${c.custom ? `<button class="btn danger block" data-act="delete-custom" data-id="${esc(id)}">${icon('trash', 18)} ${t('Wort löschen')}</button>` : ''}
         </div>
       </div>`);
   }
 
   const POS_HINT = {
-    n: 'Ding, Ort oder Person – z. B. kelapa (Kokosnuss), pantai (Strand)',
-    v: 'Tätigkeit – Deutsch bitte in der Grundform, z. B. „schwimmen“',
-    a: 'Eigenschaft – z. B. segar (frisch), lucu (süß, lustig)',
-    x: 'Ausdruck oder Redewendung – Beispielsätze nur aus dem Kurs oder deinem eigenen Satz',
+    n: t('Ding, Ort oder Person – z. B. kelapa (Kokosnuss), pantai (Strand)'),
+    v: t('Tätigkeit – Deutsch bitte in der Grundform, z. B. „schwimmen“'),
+    a: t('Eigenschaft – z. B. segar (frisch), lucu (süß, lustig)'),
+    x: t('Ausdruck oder Redewendung – Beispielsätze nur aus dem Kurs oder deinem eigenen Satz'),
   };
 
   function addWordSheet() {
     openSheet(`
-      <div class="sheet-head"><h2>Eigene Vokabel</h2>${closeBtn()}</div>
-      <p class="muted">Sie kommt sofort in den Vokabeltrainer – mit Beispielsätzen aus Wörtern, die du schon kennst.</p>
+      <div class="sheet-head"><h2>${t('Eigene Vokabel')}</h2>${closeBtn()}</div>
+      <p class="muted">${t('Sie kommt sofort in den Vokabeltrainer – mit Beispielsätzen aus Wörtern, die du schon kennst.')}</p>
       <form class="form" id="add-form" autocomplete="off" novalidate>
-        <label>Indonesisch<input name="indo" required autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="z. B. kelapa"></label>
-        <label>Deutsch<input name="de" required placeholder="z. B. Kokosnuss"></label>
+        <label>${t('Indonesisch')}<input name="indo" required autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${t('z. B. kelapa')}"></label>
+        <label>${t('Deutsch')}<input name="de" required placeholder="${t('z. B. Kokosnuss')}"></label>
         <div>
-          <div class="field-label">Wortart</div>
+          <div class="field-label">${t('Wortart')}</div>
           <div class="seg" id="pos-seg">${Object.keys(Ex.POS_LABEL).map(k =>
             `<button type="button" class="seg-btn" data-pos="${k}">${Ex.POS_LABEL[k]}</button>`).join('')}</div>
-          <p class="muted small pos-hint">Wähle die Wortart – damit baut die App passende Beispielsätze.</p>
+          <p class="muted small pos-hint">${t('Wähle die Wortart – damit baut die App passende Beispielsätze.')}</p>
         </div>
         <div id="add-preview"></div>
         <details class="own-ex">
-          <summary>Eigenen Beispielsatz hinzufügen (optional)</summary>
-          <label>Beispielsatz<input name="ex" autocapitalize="off" spellcheck="false" placeholder="z. B. Saya mau minum air kelapa."></label>
-          <label>Übersetzung<input name="exde" placeholder="z. B. Ich möchte Kokoswasser trinken."></label>
+          <summary>${t('Eigenen Beispielsatz hinzufügen (optional)')}</summary>
+          <label>${t('Beispielsatz')}<input name="ex" autocapitalize="off" spellcheck="false" placeholder="${t('z. B. Saya mau minum air kelapa.')}"></label>
+          <label>${t('Übersetzung')}<input name="exde" placeholder="${t('z. B. Ich möchte Kokoswasser trinken.')}"></label>
         </details>
-        <button class="btn primary block" type="submit">Hinzufügen</button>
+        <button class="btn primary block" type="submit">${t('Hinzufügen')}</button>
       </form>`, sheet => {
       const form = sheet.querySelector('#add-form');
       let pos = '';
@@ -466,7 +470,7 @@
         const box = sheet.querySelector('#add-preview');
         if (!indo || !de || !pos) { box.innerHTML = ''; return; }
         const ex = Ex.forCard({ id: 'preview', kind: 'w', custom: true, indo, de, coll: '', pos, unit: St.CUSTOM });
-        box.innerHTML = ex ? `<div class="field-label">So könnte ein Beispielsatz aussehen</div>${Ex.blockHTML(ex)}` : '';
+        box.innerHTML = ex ? `<div class="field-label">${t('So könnte ein Beispielsatz aussehen')}</div>${Ex.blockHTML(ex)}` : '';
       };
       sheet.querySelectorAll('[data-pos]').forEach(b => {
         b.onclick = () => {
@@ -481,15 +485,15 @@
       form.onsubmit = e => {
         e.preventDefault();
         const indo = form.indo.value.trim(), de = form.de.value.trim();
-        if (!indo || !de) { toast('Bitte Indonesisch und Deutsch ausfüllen.'); return; }
-        if (!pos) { toast('Bitte wähle die Wortart.'); return; }
+        if (!indo || !de) { toast(t('Bitte Indonesisch und Deutsch ausfüllen.')); return; }
+        if (!pos) { toast(t('Bitte wähle die Wortart.')); return; }
         const key = St.norm(indo);
-        if (St.S.custom.some(c => St.norm(c.indo) === key)) { toast('Dieses Wort hast du schon hinzugefügt.'); return; }
+        if (St.S.custom.some(c => St.norm(c.indo) === key)) { toast(t('Dieses Wort hast du schon hinzugefügt.')); return; }
         // Gibt es das Wort schon im Kurs? Dann diese Karte verwenden.
         const course = St.ORDER.map(id => St.CARDS[id]).find(c => c.kind === 'w' && St.answersFor(c).some(a => St.norm(a) === key));
         if (course) {
-          if (St.S.cards[course.id]) { toast(`„${course.indo}“ kennst du schon – es ist bereits im Trainer.`); return; }
-          if (confirm(`„${course.indo}“ gibt es schon im Kurs (${course.de}). Diese Karte in den Trainer holen?`)) {
+          if (St.S.cards[course.id]) { toast(t('„{w}“ kennst du schon – es ist bereits im Trainer.', { w: course.indo })); return; }
+          if (confirm(t('„{w}“ gibt es schon im Kurs ({d}). Diese Karte in den Trainer holen?', { w: course.indo, d: course.de }))) {
             St.pullToTrainer(course.id);
             closeSheet();
             toast('Kommt im nächsten Trainer-Durchgang.');
@@ -499,27 +503,29 @@
         }
         St.addCustom(indo, de, form.ex.value.trim(), form.exde.value.trim(), pos);
         closeSheet();
-        toast('Gespeichert – kommt im nächsten Trainer-Durchgang.');
+        toast(t('Gespeichert – kommt im nächsten Trainer-Durchgang.'));
         render(true);
       };
     });
   }
 
   // ---------- Gespräche ----------
-  const ASK_EXAMPLES = ['Im Restaurant kam das falsche Essen', 'Ich muss zum Arzt', 'Mit dem Vermieter über die Miete reden', 'Unterschied zwischen tidak und bukan', 'Was heißt Kokosnuss?'];
+  const ASK_EXAMPLES = LANG === 'en'
+    ? ['I got the wrong food at a restaurant', 'I need to see a doctor', 'Talking to the landlord about the rent', 'Difference between tidak and bukan', 'What is coconut in Indonesian?']
+    : ['Im Restaurant kam das falsche Essen', 'Ich muss zum Arzt', 'Mit dem Vermieter über die Miete reden', 'Unterschied zwischen tidak und bukan', 'Was heißt Kokosnuss?'];
   const unitOf = d => St.UNITS.find(u => u.key === d.unit) || St.UNITS[0];
 
   function dialogRow(d) {
     const st = St.S.dialogs[d.id];
     const u = unitOf(d);
     const ready = u.index <= St.currentUnit().index + 1;
-    const sub = st ? `${st.n}× geübt` : ready ? 'passt zu deinem Stand' : `Wörter dazu ab Thema ${St.UNITS.filter(x => x.level === u.level).indexOf(u) + 1}`;
+    const sub = st ? t('{n}× geübt', { n: st.n }) : ready ? t('passt zu deinem Stand') : t('Wörter dazu ab Thema {n}', { n: St.UNITS.filter(x => x.level === u.level).indexOf(u) + 1 });
     const pill = st ? `<span class="pill${st.best >= 0.8 ? '' : ' accent'}">${Math.round(st.best * 100)} %</span>`
-      : ready ? '<span class="pill accent">neu</span>' : '';
+      : ready ? `<span class="pill accent">${t('neu')}</span>` : '';
     return `
       <button class="dlg-row${ready || st ? '' : ' later'}" data-act="dialog" data-v="${esc(d.id)}">
         <span class="dlg-ic">${esc(d.icon)}</span>
-        <span class="grow"><b>${esc(d.title)}</b><span class="muted small">${d.level === 2 ? 'Level 2 · ' : ''}${d.personal ? 'über dich · ' : ''}${sub}</span></span>
+        <span class="grow"><b>${esc(d.title)}</b><span class="muted small">${d.level === 2 ? 'Level 2 · ' : ''}${d.personal ? t('über dich') + ' · ' : ''}${sub}</span></span>
         ${pill}
       </button>`;
   }
@@ -527,18 +533,18 @@
   function askResultsHTML() {
     const r = ask.res;
     if (r === undefined) return '';
-    const head = `<div class="card-head"><span class="muted small">Zusammengestellt für <b>„${esc(ask.q)}“</b></span><button class="icon-btn sm" data-act="ask-clear" aria-label="Schließen">${icon('x', 18)}</button></div>`;
-    if (r === null) return `<section class="card ask-results">${head}<p class="muted">Schreib ein paar Stichworte mehr – z. B. <i>„Im Restaurant kam das falsche Essen“</i>.</p></section>`;
+    const head = `<div class="card-head"><span class="muted small">${t('Zusammengestellt für <b>„{q}“</b>', { q: esc(ask.q) })}</span><button class="icon-btn sm" data-act="ask-clear" aria-label="${t('Schließen')}">${icon('x', 18)}</button></div>`;
+    if (r === null) return `<section class="card ask-results">${head}<p class="muted">${t('Schreib ein paar Stichworte mehr – z. B. <i>„Im Restaurant kam das falsche Essen“</i>.')}</p></section>`;
     const parts = [];
-    if (r.dialogs.length) parts.push(`<h3>Passende Gespräche</h3><div class="dlg-list">${r.dialogs.map(dialogRow).join('')}</div>`);
-    if (r.lessons.length) parts.push(`<h3>Grammatik</h3>${r.lessons.map(l =>
+    if (r.dialogs.length) parts.push(`<h3>${t('Passende Gespräche')}</h3><div class="dlg-list">${r.dialogs.map(dialogRow).join('')}</div>`);
+    if (r.lessons.length) parts.push(`<h3>${t('Grammatik')}</h3>${r.lessons.map(l =>
       `<button class="lesson-link" data-act="lesson" data-v="${esc(l.key)}">${icon('book', 20)}<span>${esc(l.title)}</span></button>`).join('')}`);
-    if (r.words.length) parts.push(`<h3>Nützliche Wörter</h3><div class="word-list">${r.words.map(wordRow).join('')}</div>`);
-    if (r.sentences.length) parts.push(`<h3>Beispielsätze</h3><div class="sent-list">${r.sentences.map(s => `
+    if (r.words.length) parts.push(`<h3>${t('Nützliche Wörter')}</h3><div class="word-list">${r.words.map(wordRow).join('')}</div>`);
+    if (r.sentences.length) parts.push(`<h3>${t('Beispielsätze')}</h3><div class="sent-list">${r.sentences.map(s => `
       <div class="sent-row"><span class="grow"><b>${esc(s.indo)}</b><span class="muted">${esc(s.de)}</span></span>
-        <button class="speak-btn" data-say="${esc(s.indo)}" aria-label="Vorlesen">${icon('speaker', 20)}</button></div>`).join('')}</div>`);
-    if (!parts.length) parts.push(`<p>Dazu habe ich leider nichts Passendes gefunden.</p>
-      <p class="muted small">Versuch es mit anderen Wörtern – z. B. „Arzt“, „Wohnung mieten“, „Rechnung“ oder einem indonesischen Wort.</p>`);
+        <button class="speak-btn" data-say="${esc(s.indo)}" aria-label="${t('Vorlesen')}">${icon('speaker', 20)}</button></div>`).join('')}</div>`);
+    if (!parts.length) parts.push(`<p>${t('Dazu habe ich leider nichts Passendes gefunden.')}</p>
+      <p class="muted small">${t('Versuch es mit anderen Wörtern – z. B. „Arzt“, „Wohnung mieten“, „Rechnung“ oder einem indonesischen Wort.')}</p>`);
     return `<section class="card ask-results">${head}${parts.join('')}</section>`;
   }
 
@@ -556,42 +562,42 @@
         </section>`;
     }).join('');
     return `
-      <header class="topbar"><h1>Gespräche</h1><button class="icon-btn" data-act="profile" aria-label="Über mich">${icon('user', 24)}</button></header>
+      <header class="topbar"><h1>${t('Gespräche')}</h1><button class="icon-btn" data-act="profile" aria-label="${t('Über mich')}">${icon('user', 24)}</button></header>
       ${hasProfile || S.ui.profileHidden ? '' : `
       <section class="card profile-callout">
-        <b>Erzähl der App von dir 👤</b>
-        <p class="muted small">Name, Herkunft, Beruf, Hobby – dann drehen sich die Gespräche um <i>dein</i> Leben. Alles bleibt nur auf deinem Handy.</p>
-        <div class="btn-row"><button class="btn primary sm" data-act="profile">Über mich ausfüllen</button><button class="btn ghost sm" data-act="hide" data-v="profileHidden">Später</button></div>
+        <b>${t('Erzähl der App von dir')} 👤</b>
+        <p class="muted small">${t('Name, Herkunft, Beruf, Hobby – dann drehen sich die Gespräche um <i>dein</i> Leben. Alles bleibt nur auf deinem Handy.')}</p>
+        <div class="btn-row"><button class="btn primary sm" data-act="profile">${t('Über mich ausfüllen')}</button><button class="btn ghost sm" data-act="hide" data-v="profileHidden">${t('Später')}</button></div>
       </section>`}
       <section class="card ask">
-        <h3>Was möchtest du üben oder wissen?</h3>
-        <p class="muted small">Schildere eine Situation oder stell eine Frage – die App stellt dir passende Gespräche, Wörter, Sätze und Grammatik zusammen.</p>
+        <h3>${t('Was möchtest du üben oder wissen?')}</h3>
+        <p class="muted small">${t('Schildere eine Situation oder stell eine Frage – die App stellt dir passende Gespräche, Wörter, Sätze und Grammatik zusammen.')}</p>
         <form class="ask-form" id="ask-form" autocomplete="off">
-          <textarea name="q" rows="2" placeholder="z. B. Im Restaurant kam das falsche Essen – wie beschwere ich mich?" aria-label="Situation oder Frage">${esc(ask.q)}</textarea>
+          <textarea name="q" rows="2" placeholder="${t('z. B. Im Restaurant kam das falsche Essen – wie beschwere ich mich?')}" aria-label="${t('Situation oder Frage')}">${esc(ask.q)}</textarea>
           <div class="ask-actions">
-            ${Listen.supported ? `<button type="button" class="icon-btn mic" data-mic aria-label="Auf Deutsch sprechen">${icon('mic', 22)}</button>` : ''}
-            <button class="btn primary grow" type="submit">Zusammenstellen</button>
+            ${Listen.supported ? `<button type="button" class="icon-btn mic" data-mic aria-label="${t('Auf Deutsch sprechen')}">${icon('mic', 22)}</button>` : ''}
+            <button class="btn primary grow" type="submit">${t('Zusammenstellen')}</button>
           </div>
         </form>
-        <div class="field-label">${recent.length ? 'Zuletzt & Beispiele' : 'Zum Beispiel'}</div>
+        <div class="field-label">${recent.length ? t('Zuletzt & Beispiele') : t('Zum Beispiel')}</div>
         <div class="chips wrap">${recent.concat(ASK_EXAMPLES.filter(q => !recent.includes(q))).slice(0, Math.max(5, recent.length))
           .map(q => `<button class="chip-btn${recent.includes(q) ? ' recent' : ''}" data-act="ask" data-v="${esc(q)}">${recent.includes(q) ? '🕘 ' : ''}${esc(q)}</button>`).join('')}</div>
       </section>
       <div id="ask-results">${askResultsHTML()}</div>
       <section class="card">
-        <h3>Für dich empfohlen</h3>
+        <h3>${t('Für dich empfohlen')}</h3>
         <div class="dlg-list">${Talk.recommend(3).map(dialogRow).join('')}</div>
       </section>
       ${groups}
       <section class="card">
         <details>
-          <summary><b>So funktioniert der Gesprächstrainer</b></summary>
+          <summary><b>${t('So funktioniert der Gesprächstrainer')}</b></summary>
           <div class="method">
-            <p><b>Gespräche nachspielen:</b> Dein Gegenüber spricht (🔊), du antwortest auf Indonesisch – tippen oder mit 🎤 sprechen. Es gibt nicht nur eine richtige Antwort: Die App achtet auf die wichtigen Wörter und ist bei kleinen Tippfehlern großzügig.</p>
-            <p><b>Hilfe, wenn du hängst:</b> Unten gibt es einen Tipp, eine Auswahl oder die Lösung. Tippe auf einen Satz deines Gegenübers, um die Übersetzung zu sehen – oder schalte oben „DE“ ein.</p>
-            <p><b>Freihand-Modus 🎧:</b> Die App hört nach jedem Satz automatisch zu – wie ein echtes Gespräch, ganz ohne Tippen.</p>
-            <p><b>Am Ende:</b> Du siehst, was gut lief, und kannst neue Wörter und schwierige Sätze mit einem Tipp in den Vokabeltrainer übernehmen.</p>
-            <p><b>Über mich:</b> Deine Angaben (Name, Herkunft, Beruf …) werden in die Gespräche eingesetzt. Und was du oben schilderst, merkt sich die App für ihre Empfehlungen.</p>
+            <p>${t('<b>Gespräche nachspielen:</b> Dein Gegenüber spricht (🔊), du antwortest auf Indonesisch – tippen oder mit 🎤 sprechen. Es gibt nicht nur eine richtige Antwort: Die App achtet auf die wichtigen Wörter und ist bei kleinen Tippfehlern großzügig.')}</p>
+            <p>${t('<b>Hilfe, wenn du hängst:</b> Unten gibt es einen Tipp, eine Auswahl oder die Lösung. Tippe auf einen Satz deines Gegenübers, um die Übersetzung zu sehen – oder schalte oben „DE“ ein.')}</p>
+            <p>${t('<b>Freihand-Modus 🎧:</b> Die App hört nach jedem Satz automatisch zu – wie ein echtes Gespräch, ganz ohne Tippen.')}</p>
+            <p>${t('<b>Am Ende:</b> Du siehst, was gut lief, und kannst neue Wörter und schwierige Sätze mit einem Tipp in den Vokabeltrainer übernehmen.')}</p>
+            <p>${t('<b>Über mich:</b> Deine Angaben (Name, Herkunft, Beruf …) werden in die Gespräche eingesetzt. Und was du oben schilderst, merkt sich die App für ihre Empfehlungen.')}</p>
           </div>
         </details>
       </section>`;
@@ -610,8 +616,8 @@
       const before = ta.value;
       mic.classList.add('listening');
       Listen.start({
-        lang: 'de-DE',
-        onInterim: t => { if (t) ta.value = t; },
+        lang: LANG === 'en' ? 'en-US' : 'de-DE',
+        onInterim: x => { if (x) ta.value = x; },
         onEnd: alts => {
           mic.classList.remove('listening');
           if (alts[0]) runAsk(alts[0]);
@@ -619,8 +625,8 @@
         },
         onError: code => {
           mic.classList.remove('listening');
-          toast(code === 'not-allowed' || code === 'service-not-allowed' ? 'Bitte erlaube der App den Zugriff aufs Mikrofon.'
-            : code === 'no-speech' ? 'Ich habe nichts gehört – nochmal?' : 'Spracherkennung gerade nicht möglich – bitte tippen.');
+          toast(code === 'not-allowed' || code === 'service-not-allowed' ? t('Bitte erlaube der App den Zugriff aufs Mikrofon.')
+            : code === 'no-speech' ? t('Ich habe nichts gehört – nochmal?') : t('Spracherkennung gerade nicht möglich – bitte tippen.'));
         },
       });
     };
@@ -628,7 +634,7 @@
 
   function runAsk(q) {
     q = (q || '').trim();
-    if (!q) { toast('Schreib zuerst, was du üben oder wissen möchtest.'); return; }
+    if (!q) { toast(t('Schreib zuerst, was du üben oder wissen möchtest.')); return; }
     Listen.stop();
     const res = Talk.search(q);
     ask = { q, res };
@@ -649,46 +655,46 @@
   function profileSheet(done) {
     const P = St.S.profile || {};
     const O = Talk.OPTIONS;
-    const label = de => de.replace(/^der /, '').replace(/^den Niederlanden$/, 'Niederlande');
+    const label = o => Talk.label(o).replace(/^der /, '').replace(/^den Niederlanden$/, 'Niederlande').replace(/^the Netherlands$/, 'Netherlands');
     const select = (name, list, val) => {
       const known = !val || list.some(([v]) => v === val);
       return `<select name="${name}">
-        <option value="" ${val ? '' : 'selected'}>– bitte wählen –</option>
-        ${list.map(([v, de]) => `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(label(de))}${v.toLowerCase() === label(de).toLowerCase() ? '' : ` – ${esc(v)}`}</option>`).join('')}
-        <option value="__other" ${known ? '' : 'selected'}>Anderes …</option>
+        <option value="" ${val ? '' : 'selected'}>${t('– bitte wählen –')}</option>
+        ${list.map(o => { const v = o[0]; return `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(label(o))}${v.toLowerCase() === label(o).toLowerCase() ? '' : ` – ${esc(v)}`}</option>`; }).join('')}
+        <option value="__other" ${known ? '' : 'selected'}>${t('Anderes …')}</option>
       </select>
-      <input name="${name}Other" value="${known ? '' : esc(val)}" placeholder="auf Indonesisch oder Deutsch" ${known ? 'hidden' : ''}>`;
+      <input name="${name}Other" value="${known ? '' : esc(val)}" placeholder="${t('auf Indonesisch oder Deutsch')}" ${known ? 'hidden' : ''}>`;
     };
     let anrede = P.anrede || '';
     openSheet(`
-      <div class="sheet-head"><h2>👤 Über mich</h2>${closeBtn()}</div>
-      <p class="muted">Diese Angaben setzt die App in die Gespräche ein – so übst du Sätze über <i>dein</i> Leben. Alles ist freiwillig und bleibt nur auf diesem Handy.</p>
+      <div class="sheet-head"><h2>👤 ${t('Über mich')}</h2>${closeBtn()}</div>
+      <p class="muted">${t('Diese Angaben setzt die App in die Gespräche ein – so übst du Sätze über <i>dein</i> Leben. Alles ist freiwillig und bleibt nur auf diesem Handy.')}</p>
       <form class="form" id="profile-form" autocomplete="off" novalidate>
-        <label>Dein Vorname<input name="nama" value="${esc(P.nama || '')}" placeholder="Vorname" autocapitalize="words"></label>
+        <label>${t('Dein Vorname')}<input name="nama" value="${esc(P.nama || '')}" placeholder="${t('Vorname')}" autocapitalize="words"></label>
         <div>
-          <div class="field-label">Wie sprechen dich Leute an?</div>
-          <div class="seg">${O.anrede.map(([v, de]) => `<button type="button" class="seg-btn${anrede === v ? ' active' : ''}" data-anrede="${v}">${esc(de.split(' – ')[0])}</button>`).join('')}</div>
-          <p class="muted small anrede-hint">${esc((O.anrede.find(a => a[0] === anrede) || O.anrede[2])[1])}</p>
+          <div class="field-label">${t('Wie sprechen dich Leute an?')}</div>
+          <div class="seg">${O.anrede.map(o => `<button type="button" class="seg-btn${anrede === o[0] ? ' active' : ''}" data-anrede="${o[0]}">${esc(Talk.label(o).split(' – ')[0])}</button>`).join('')}</div>
+          <p class="muted small anrede-hint">${esc(Talk.label(O.anrede.find(a => a[0] === anrede) || O.anrede[2]))}</p>
         </div>
-        <label>Woher kommst du?${select('asal', O.asal, P.asal)}</label>
-        <label>Wo bist du in Indonesien?<input name="kota" value="${esc(P.kota || '')}" placeholder="z. B. Bali, Ubud, Jakarta" autocapitalize="words"></label>
-        <label>Was arbeitest du?${select('kerja', O.kerja, P.kerja)}</label>
-        <label>Dein liebstes Hobby${select('hobi', O.hobi, P.hobi)}</label>
+        <label>${t('Woher kommst du?')}${select('asal', O.asal, P.asal)}</label>
+        <label>${t('Wo bist du in Indonesien?')}<input name="kota" value="${esc(P.kota || '')}" placeholder="${t('z. B. Bali, Ubud, Jakarta')}" autocapitalize="words"></label>
+        <label>${t('Was arbeitest du?')}${select('kerja', O.kerja, P.kerja)}</label>
+        <label>${t('Dein liebstes Hobby')}${select('hobi', O.hobi, P.hobi)}</label>
         <div>
-          <div class="field-label">Partner(in) <small>– optional, für Gespräche über Familie</small></div>
+          <div class="field-label">${t('Partner(in)')} <small>– ${t('optional, für Gespräche über Familie')}</small></div>
           <div class="two-col">
-            <input name="pasangan" value="${esc(P.pasangan || '')}" placeholder="Name" autocapitalize="words" aria-label="Name">
-            <select name="pasanganRel" aria-label="Beziehung">${O.pasanganRel.map(([v, de]) => `<option value="${v}" ${v === (P.pasanganRel || 'pacar') ? 'selected' : ''}>${esc(de)} – ${v}</option>`).join('')}</select>
+            <input name="pasangan" value="${esc(P.pasangan || '')}" placeholder="${t('Name')}" autocapitalize="words" aria-label="${t('Name')}">
+            <select name="pasanganRel" aria-label="${t('Beziehung')}">${O.pasanganRel.map(o => `<option value="${o[0]}" ${o[0] === (P.pasanganRel || 'pacar') ? 'selected' : ''}>${esc(Talk.label(o))} – ${o[0]}</option>`).join('')}</select>
           </div>
         </div>
-        <button class="btn primary block" type="submit">Speichern</button>
+        <button class="btn primary block" type="submit">${t('Speichern')}</button>
       </form>`, sheet => {
       const form = sheet.querySelector('#profile-form');
       sheet.querySelectorAll('[data-anrede]').forEach(b => {
         b.onclick = () => {
           anrede = b.dataset.anrede;
           sheet.querySelectorAll('[data-anrede]').forEach(x => x.classList.toggle('active', x === b));
-          sheet.querySelector('.anrede-hint').textContent = O.anrede.find(a => a[0] === anrede)[1];
+          sheet.querySelector('.anrede-hint').textContent = Talk.label(O.anrede.find(a => a[0] === anrede));
         };
       });
       ['asal', 'kerja', 'hobi'].forEach(n => {
@@ -705,7 +711,7 @@
           const v = val(n);
           if (v === '__other') { const o = val(n + 'Other'); return [o, o]; }
           const hit = list.find(([x]) => x === v);
-          return hit ? hit : ['', ''];
+          return hit ? [hit[0], hit[1]] : ['', ''];
         };
         const [asal, asalDe] = pickVal('asal', O.asal);
         const [kerja, kerjaDe] = pickVal('kerja', O.kerja);
@@ -717,7 +723,7 @@
         };
         St.save();
         closeSheet();
-        toast('Gespeichert – die Gespräche nutzen jetzt deine Angaben.');
+        toast(t('Gespeichert – die Gespräche nutzen jetzt deine Angaben.'));
         if (done) done(); else render(true);
       };
     });
@@ -734,7 +740,7 @@
   }
 
   // ---------- Statistik ----------
-  const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const WD = LANG === 'en' ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] : ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   function viewStats() {
     const S = St.S;
     const vc = St.vocabCount();
@@ -766,80 +772,84 @@
     const m = S.learner.m;
     const pct = Math.round(Math.abs(m - 1) * 100);
     const memText = Math.abs(m - 1) < 0.05
-      ? 'Du liegst genau im Durchschnitt – die Abstände sind Standard.'
-      : m > 1 ? `Du behältst Wörter besser als erwartet – die App plant Wiederholungen <b>${pct} % später</b>.`
-        : `Die App wiederholt etwas öfter (<b>${pct} % kürzere Abstände</b>), damit nichts verloren geht.`;
+      ? t('Du liegst genau im Durchschnitt – die Abstände sind Standard.')
+      : m > 1 ? t('Du behältst Wörter besser als erwartet – die App plant Wiederholungen <b>{n} % später</b>.', { n: pct })
+        : t('Die App wiederholt etwas öfter (<b>{n} % kürzere Abstände</b>), damit nichts verloren geht.', { n: pct });
     const set = S.settings;
-    const tempo = set.newMode === 'fixed' ? `${set.newFixed} pro Tag (fest eingestellt)` : `${St.plan().target} heute · passt sich automatisch an`;
+    const tempo = set.newMode === 'fixed' ? t('{n} pro Tag (fest eingestellt)', { n: set.newFixed }) : t('{n} heute · passt sich automatisch an', { n: St.plan().target });
     const total = buckets.reduce((a, b) => a + b, 0) || 1;
 
     return `
-      <header class="topbar"><button class="icon-btn" data-act="back" aria-label="Zurück">${icon('back', 26)}</button><h1>Statistik</h1><span></span></header>
+      <header class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('Zurück')}">${icon('back', 26)}</button><h1>${t('Statistik')}</h1><span></span></header>
       <section class="stat-grid">
-        <div class="tile-stat"><b>${St.streak()}</b><span>Tage Serie</span></div>
-        <div class="tile-stat"><b>${vc.words}</b><span>Wörter</span></div>
-        <div class="tile-stat"><b>${vc.sentences}</b><span>Sätze</span></div>
+        <div class="tile-stat"><b>${St.streak()}</b><span>${t('Tage Serie')}</span></div>
+        <div class="tile-stat"><b>${vc.words}</b><span>${t('Wörter')}</span></div>
+        <div class="tile-stat"><b>${vc.sentences}</b><span>${t('Sätze')}</span></div>
         ${totalSecs < 3600
-          ? `<div class="tile-stat"><b>${Math.round(totalSecs / 60)}</b><span>Minuten gesamt</span></div>`
-          : `<div class="tile-stat"><b>${(totalSecs / 3600).toFixed(1).replace('.', ',')}</b><span>Stunden gesamt</span></div>`}
+          ? `<div class="tile-stat"><b>${Math.round(totalSecs / 60)}</b><span>${t('Minuten gesamt')}</span></div>`
+          : `<div class="tile-stat"><b>${LANG === 'en' ? (totalSecs / 3600).toFixed(1) : (totalSecs / 3600).toFixed(1).replace('.', ',')}</b><span>${t('Stunden gesamt')}</span></div>`}
       </section>
 
       <section class="card">
-        <h3>Behaltensquote (30 Tage)</h3>
+        <h3>${t('Behaltensquote (30 Tage)')}</h3>
         <div class="big-num">${r30 ? Math.round(ok30 / r30 * 100) + ' %' : '–'}</div>
-        <p class="muted small">Anteil der Wiederholungen, die du gewusst hast. Ziel: über 90 % – die App wiederholt lieber etwas öfter, damit nichts verloren geht.</p>
+        <p class="muted small">${t('Anteil der Wiederholungen, die du gewusst hast. Ziel: über 90 % – die App wiederholt lieber etwas öfter, damit nichts verloren geht.')}</p>
       </section>
 
       <section class="card">
-        <h3>Dein Lerntempo</h3>
+        <h3>${t('Dein Lerntempo')}</h3>
         <p>${memText}</p>
-        <p class="muted small">Neue Wörter: ${tempo}</p>
+        <p class="muted small">${t('Neue Wörter')}: ${tempo}</p>
       </section>
 
       <section class="card">
-        <h3>Letzte 14 Tage</h3>
+        <h3>${t('Letzte 14 Tage')}</h3>
         <div class="bars">${days14.map(d => `
-          <div class="bar-col" title="${d.n} neu, ${d.r} wiederholt">
+          <div class="bar-col" title="${t('{a} neu, {b} wiederholt', { a: d.n, b: d.r })}">
             <div class="bar-stack" style="height:${((d.n + d.r) / max14) * 100}%">
               <i class="b-new" style="flex:${d.n}"></i><i class="b-rev" style="flex:${d.r}"></i>
             </div>
             <span>${d.label}</span>
           </div>`).join('')}</div>
-        <div class="legend"><span><i class="b-new"></i>neu</span><span><i class="b-rev"></i>wiederholt</span></div>
+        <div class="legend"><span><i class="b-new"></i>${t('neu')}</span><span><i class="b-rev"></i>${t('wiederholt')}</span></div>
       </section>
 
       <section class="card">
-        <h3>Wiederholungen nächste 7 Tage</h3>
+        <h3>${t('Wiederholungen nächste 7 Tage')}</h3>
         <div class="bars small-bars">${forecast.map((n, i) => `
           <div class="bar-col"><em>${n || ''}</em>
             <div class="bar-stack" style="height:${(n / maxF) * 100}%"><i class="b-rev" style="flex:1"></i></div>
-            <span>${i === 0 ? 'heute' : WD[new Date((t0 + i) * St.DAY).getUTCDay()]}</span>
+            <span>${i === 0 ? t('heute') : WD[new Date((t0 + i) * St.DAY).getUTCDay()]}</span>
           </div>`).join('')}</div>
       </section>
 
       <section class="card">
-        <h3>Wie gut sitzen deine Wörter?</h3>
+        <h3>${t('Wie gut sitzen deine Wörter?')}</h3>
         <div class="stack-bar">
           <i class="sb0" style="flex:${buckets[0]}"></i><i class="sb1" style="flex:${buckets[1]}"></i><i class="sb2" style="flex:${buckets[2]}"></i><i class="sb3" style="flex:${buckets[3]}"></i>
         </div>
         <div class="legend wrap">
-          <span><i class="sb0"></i>im Lernen ${buckets[0]}</span>
-          <span><i class="sb1"></i>frisch ${buckets[1]}</span>
-          <span><i class="sb2"></i>gefestigt ${buckets[2]}</span>
-          <span><i class="sb3"></i>sicher ${buckets[3]}</span>
+          <span><i class="sb0"></i>${t('im Lernen')} ${buckets[0]}</span>
+          <span><i class="sb1"></i>${t('frisch')} ${buckets[1]}</span>
+          <span><i class="sb2"></i>${t('gefestigt')} ${buckets[2]}</span>
+          <span><i class="sb3"></i>${t('sicher')} ${buckets[3]}</span>
         </div>
-        ${total > 1 ? '' : '<p class="muted small">Sobald du lernst, siehst du hier, wie fest deine Wörter sitzen.</p>'}
+        ${total > 1 ? '' : `<p class="muted small">${t('Sobald du lernst, siehst du hier, wie fest deine Wörter sitzen.')}</p>`}
       </section>
 
       ${hard.length ? `
       <section class="card">
-        <h3>Deine Stolpersteine</h3>
-        <p class="muted small">Diese Wörter vergisst du öfter. Tipp: Denk dir eine Eselsbrücke aus oder bilde einen eigenen Satz damit.</p>
+        <h3>${t('Deine Stolpersteine')}</h3>
+        <p class="muted small">${t('Diese Wörter vergisst du öfter. Tipp: Denk dir eine Eselsbrücke aus oder bilde einen eigenen Satz damit.')}</p>
         <div class="word-list">${hard.slice(0, 8).map(h => wordRow(St.CARDS[h[0]])).join('')}</div>
       </section>` : ''}`;
   }
 
   // ---------- Einstellungen ----------
+  // Sprache der App: Deutsch oder Englisch (ein Wechsel lädt die App neu, der Lernstand bleibt)
+  const langSeg = () => `<div class="seg">${[['de', 'Deutsch'], ['en', 'English']].map(([v, l]) =>
+    `<button class="seg-btn${LANG === v ? ' active' : ''}" data-act="lang" data-v="${v}">${l}</button>`).join('')}</div>`;
+
   function viewSettings() {
     const S = St.S;
     const set = S.settings;
@@ -849,83 +859,89 @@
         <input type="checkbox" data-toggle="${name}" ${set[name] ? 'checked' : ''}><i class="switch"></i></label>`;
     const voices = Speech.voices;
     return `
-      <header class="topbar"><button class="icon-btn" data-act="back" aria-label="Zurück">${icon('back', 26)}</button><h1>Einstellungen</h1><span></span></header>
+      <header class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('Zurück')}">${icon('back', 26)}</button><h1>${t('Einstellungen')}</h1><span></span></header>
 
       <section class="card">
-        <h3>Lernzeit pro Tag</h3>
-        <div class="seg">${[10, 15, 20, 30, 45].map(n => seg('minutes', n, n + ' Min')).join('')}</div>
-        <h3 class="mt">Neue Wörter pro Tag</h3>
-        <div class="seg">${seg('newMode', 'auto', 'Automatisch')}${seg('newMode', 'fixed', 'Feste Anzahl')}</div>
+        <h3>${t('Sprache der App')} · ${LANG === 'en' ? 'Sprache' : 'Language'}</h3>
+        ${langSeg()}
+        <p class="muted small lang-note">${t('Karten, Lektionen, Gespräche und Menüs in dieser Sprache. Dein Lernstand bleibt gleich.')}</p>
+      </section>
+
+      <section class="card">
+        <h3>${t('Lernzeit pro Tag')}</h3>
+        <div class="seg">${[10, 15, 20, 30, 45].map(n => seg('minutes', n, t('{n} Min', { n }))).join('')}</div>
+        <h3 class="mt">${t('Neue Wörter pro Tag')}</h3>
+        <div class="seg">${seg('newMode', 'auto', t('Automatisch'))}${seg('newMode', 'fixed', t('Feste Anzahl'))}</div>
         ${set.newMode === 'fixed' ? `
-          <div class="stepper"><button class="icon-btn" data-act="newfixed" data-v="-1" aria-label="Weniger">−</button><b>${set.newFixed}</b><button class="icon-btn" data-act="newfixed" data-v="1" aria-label="Mehr">+</button></div>` :
-        `<p class="muted small">Die App startet mit ${St.baseForMinutes(set.minutes)} neuen Wörtern pro Tag. Lernst du sicher, werden es mehr. Häufen sich Fehler oder Wiederholungen, werden es weniger.</p>`}
+          <div class="stepper"><button class="icon-btn" data-act="newfixed" data-v="-1" aria-label="${t('Weniger')}">−</button><b>${set.newFixed}</b><button class="icon-btn" data-act="newfixed" data-v="1" aria-label="${t('Mehr')}">+</button></div>` :
+        `<p class="muted small">${t('Die App startet mit {n} neuen Wörtern pro Tag. Lernst du sicher, werden es mehr. Häufen sich Fehler oder Wiederholungen, werden es weniger.', { n: St.baseForMinutes(set.minutes) })}</p>`}
       </section>
 
       <section class="card">
-        <h3>Übungen</h3>
-        ${toggle('typing', 'Antworten eintippen', 'Aktives Erinnern – am wirksamsten, aber etwas langsamer')}
-        ${toggle('colloquial', 'Alltagsformen zeigen', 'z. B. tidak → nggak, sudah → udah')}
+        <h3>${t('Übungen')}</h3>
+        ${toggle('typing', t('Antworten eintippen'), t('Aktives Erinnern – am wirksamsten, aber etwas langsamer'))}
+        ${toggle('colloquial', t('Alltagsformen zeigen'), t('z. B. tidak → nggak, sudah → udah'))}
       </section>
 
       <section class="card">
-        <h3>Aussprache</h3>
+        <h3>${t('Aussprache')}</h3>
         ${voiceCardHTML()}
-        ${toggle('autoplay', 'Automatisch vorlesen', 'Neue Wörter und Antworten werden vorgesprochen')}
-        <label class="field-row"><span>Sprechtempo</span><input type="range" min="0.6" max="1.2" step="0.05" value="${set.rate}" data-range="rate" aria-label="Sprechtempo"></label>
-        <div class="range-labels"><span>langsamer</span><span>schneller</span></div>
+        ${toggle('autoplay', t('Automatisch vorlesen'), t('Neue Wörter und Antworten werden vorgesprochen'))}
+        <label class="field-row"><span>${t('Sprechtempo')}</span><input type="range" min="0.6" max="1.2" step="0.05" value="${set.rate}" data-range="rate" aria-label="${t('Sprechtempo')}"></label>
+        <div class="range-labels"><span>${t('langsamer')}</span><span>${t('schneller')}</span></div>
         ${voices.length > 1 ? `
-          <label class="field-row"><span>Stimme</span><select data-select="voice">${voices.map(v => `<option value="${esc(v.voiceURI)}" ${v === Speech.current ? 'selected' : ''}>${esc(v.name)}${v.localService ? '' : ' (online)'}</option>`).join('')}</select></label>` : ''}
+          <label class="field-row"><span>${t('Stimme')}</span><select data-select="voice">${voices.map(v => `<option value="${esc(v.voiceURI)}" ${v === Speech.current ? 'selected' : ''}>${esc(v.name)}${v.localService ? '' : ' (online)'}</option>`).join('')}</select></label>` : ''}
         ${Speech.supported ? `
           <details class="advanced">
-            <summary>Erweitert</summary>
+            <summary>${t('Erweitert')}</summary>
             ${manualPickerHTML()}
-            <button class="btn ghost block" data-act="voice-help">Einrichtungs-Assistent öffnen</button>
+            <button class="btn ghost block" data-act="voice-help">${t('Einrichtungs-Assistent öffnen')}</button>
           </details>` : ''}
       </section>
 
       <section class="card">
-        <h3>Tägliche Erinnerung</h3>
-        <p class="muted small">Eine feste Zeit hilft enorm, dranzubleiben. Lege dir einen täglichen Kalendertermin an.</p>
+        <h3>${t('Tägliche Erinnerung')}</h3>
+        <p class="muted small">${t('Eine feste Zeit hilft enorm, dranzubleiben. Lege dir einen täglichen Kalendertermin an.')}</p>
         <div class="btn-row">
-          <input type="time" value="${esc(set.reminder)}" data-time="reminder" aria-label="Uhrzeit">
-          <button class="btn ghost" data-act="reminder">${icon('bell', 18)} In Kalender eintragen</button>
+          <input type="time" value="${esc(set.reminder)}" data-time="reminder" aria-label="${t('Uhrzeit')}">
+          <button class="btn ghost" data-act="reminder">${icon('bell', 18)} ${t('In Kalender eintragen')}</button>
         </div>
-        <p class="muted small">Alternativ: eine tägliche Erinnerung in der Uhr- oder Erinnerungen-App deines Handys.</p>
+        <p class="muted small">${t('Alternativ: eine tägliche Erinnerung in der Uhr- oder Erinnerungen-App deines Handys.')}</p>
       </section>
 
       <section class="card">
-        <h3>Datensicherung</h3>
-        <p class="muted small">Dein Fortschritt ist nur auf diesem Gerät gespeichert. Sichere ihn ab und zu – z. B. vor einem Handywechsel.</p>
+        <h3>${t('Datensicherung')}</h3>
+        <p class="muted small">${t('Dein Fortschritt ist nur auf diesem Gerät gespeichert. Sichere ihn ab und zu – z. B. vor einem Handywechsel.')}</p>
         <div class="btn-row">
-          <button class="btn ghost" data-act="export">${icon('download', 18)} Sichern</button>
-          <button class="btn ghost" data-act="import">${icon('upload', 18)} Wiederherstellen</button>
+          <button class="btn ghost" data-act="export">${icon('download', 18)} ${t('Sichern')}</button>
+          <button class="btn ghost" data-act="import">${icon('upload', 18)} ${t('Wiederherstellen')}</button>
           <input type="file" accept="application/json,.json" id="import-file" hidden>
         </div>
       </section>
 
       <section class="card">
-        <h3>App installieren</h3>
-        <button class="btn ghost block" data-act="install-help">Anleitung für iPhone & Android</button>
+        <h3>${t('App installieren')}</h3>
+        <button class="btn ghost block" data-act="install-help">${t('Anleitung für iPhone & Android')}</button>
       </section>
 
       <section class="card">
         <details>
-          <summary><b>So lernst du mit dieser App</b></summary>
+          <summary><b>${t('So lernst du mit dieser App')}</b></summary>
           <div class="method">
-            <p><b>Verteilte Wiederholung:</b> Jedes Wort hat ein eigenes „Gedächtnis-Modell“. Die App zeigt es dir genau dann wieder, wenn du es sonst bald vergessen würdest. Gekonnte Wörter kommen in immer größeren Abständen (Tage → Wochen → Monate), vergessene schon am nächsten Tag.</p>
-            <p><b>Aktives Erinnern:</b> Statt nur zu lesen, holst du die Antwort selbst aus dem Gedächtnis – vom Wiedererkennen über Hören bis zum Eintippen und Sätze-Bauen. Je sicherer ein Wort sitzt, desto schwieriger die Übung.</p>
-            <p><b>Anpassung an dich:</b> Die App vergleicht, wie oft du dich erinnerst, mit der Vorhersage, und stellt die Abstände für dich persönlich ein. Die Zahl neuer Wörter richtet sich nach deiner Trefferquote und deiner Tageszeit.</p>
-            <p><b>Häufigstes zuerst:</b> Der Kurs beginnt mit den Wörtern und Sätzen, die man im Alltag am meisten braucht. Die Grammatik kommt in kleinen Portionen, genau dann, wenn sie im Kurs auftaucht.</p>
-            <p><b>Tipps:</b> Lerne jeden Tag, lieber kurz als selten lang. Sprich alles laut nach. Sei ehrlich beim Wischen. Und nutze das Gelernte – schreib Freunden auf Indonesisch!</p>
+            <p>${t('<b>Verteilte Wiederholung:</b> Jedes Wort hat ein eigenes „Gedächtnis-Modell“. Die App zeigt es dir genau dann wieder, wenn du es sonst bald vergessen würdest. Gekonnte Wörter kommen in immer größeren Abständen (Tage → Wochen → Monate), vergessene schon am nächsten Tag.')}</p>
+            <p>${t('<b>Aktives Erinnern:</b> Statt nur zu lesen, holst du die Antwort selbst aus dem Gedächtnis – vom Wiedererkennen über Hören bis zum Eintippen und Sätze-Bauen. Je sicherer ein Wort sitzt, desto schwieriger die Übung.')}</p>
+            <p>${t('<b>Anpassung an dich:</b> Die App vergleicht, wie oft du dich erinnerst, mit der Vorhersage, und stellt die Abstände für dich persönlich ein. Die Zahl neuer Wörter richtet sich nach deiner Trefferquote und deiner Tageszeit.')}</p>
+            <p>${t('<b>Häufigstes zuerst:</b> Der Kurs beginnt mit den Wörtern und Sätzen, die man im Alltag am meisten braucht. Die Grammatik kommt in kleinen Portionen, genau dann, wenn sie im Kurs auftaucht.')}</p>
+            <p>${t('<b>Tipps:</b> Lerne jeden Tag, lieber kurz als selten lang. Sprich alles laut nach. Sei ehrlich beim Wischen. Und nutze das Gelernte – schreib Freunden auf Indonesisch!')}</p>
           </div>
         </details>
       </section>
 
       <section class="card danger-zone">
-        <h3>Zurücksetzen</h3>
-        <button class="btn danger block" data-act="reset-all">Gesamten Fortschritt löschen</button>
+        <h3>${t('Zurücksetzen')}</h3>
+        <button class="btn danger block" data-act="reset-all">${t('Gesamten Fortschritt löschen')}</button>
       </section>
-      <p class="muted small center">Bahasa · Indonesisch lernen · ${St.ORDER.length} Lernkarten</p>`;
+      <p class="muted small center">${t('Bahasa · Indonesisch lernen · {n} Lernkarten', { n: St.ORDER.length })}</p>`;
   }
 
   function bindSettings() {
@@ -944,9 +960,14 @@
       const f = file.files[0];
       if (!f) return;
       f.text().then(text => {
-        if (!confirm('Aktuellen Fortschritt durch die Sicherung ersetzen?')) return;
-        try { St.importData(text); toast('Fortschritt wiederhergestellt.'); render(); }
-        catch (e) { toast('Diese Datei ist keine gültige Sicherung.'); }
+        if (!confirm(t('Aktuellen Fortschritt durch die Sicherung ersetzen?'))) return;
+        try {
+          St.importData(text);
+          // Sicherung in der anderen Sprache? Dann App in dieser Sprache neu laden
+          if (St.S.settings.lang && St.S.settings.lang !== LANG) { location.reload(); return; }
+          toast(t('Fortschritt wiederhergestellt.'));
+          render();
+        } catch (e) { toast(t('Diese Datei ist keine gültige Sicherung.')); }
       });
       file.value = '';
     };
@@ -980,9 +1001,9 @@
     return [
       'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Bahasa//Indonesisch lernen//DE', 'CALSCALE:GREGORIAN',
       'BEGIN:VEVENT', `UID:bahasa-${Date.now()}@bahasa-app`, `DTSTAMP:${stamp}`, `DTSTART:${start}`,
-      'DURATION:PT15M', 'RRULE:FREQ=DAILY', 'SUMMARY:Indonesisch lernen 🇮🇩',
-      'DESCRIPTION:Zeit für deine tägliche Lerneinheit. Sampai jumpa!',
-      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Indonesisch lernen', 'TRIGGER:PT0M', 'END:VALARM',
+      'DURATION:PT15M', 'RRULE:FREQ=DAILY', 'SUMMARY:' + t('Indonesisch lernen') + ' 🇮🇩',
+      'DESCRIPTION:' + t('Zeit für deine tägliche Lerneinheit. Sampai jumpa!'),
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + t('Indonesisch lernen'), 'TRIGGER:PT0M', 'END:VALARM',
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
   }
@@ -991,23 +1012,23 @@
   function installSheet() {
     const canPrompt = !!installEvent;
     openSheet(`
-      <div class="sheet-head"><h2>App installieren</h2>${closeBtn()}</div>
-      ${standalone() ? '<p>✅ Die App ist bereits installiert.</p>' : ''}
-      ${canPrompt ? '<button class="btn primary block" data-act="install-now">Jetzt installieren</button>' : ''}
+      <div class="sheet-head"><h2>${t('App installieren')}</h2>${closeBtn()}</div>
+      ${standalone() ? `<p>✅ ${t('Die App ist bereits installiert.')}</p>` : ''}
+      ${canPrompt ? `<button class="btn primary block" data-act="install-now">${t('Jetzt installieren')}</button>` : ''}
       <h3>iPhone (Safari)</h3>
       <ol class="steps">
-        <li>Diese Seite in <b>Safari</b> öffnen.</li>
-        <li>Unten auf das <b>Teilen-Symbol</b> tippen (Quadrat mit Pfeil nach oben).</li>
-        <li><b>„Zum Home-Bildschirm“</b> wählen (evtl. etwas nach unten scrollen) und <b>Hinzufügen</b> tippen.</li>
-        <li>Ab jetzt die App über das neue Symbol starten.</li>
+        <li>${t('Diese Seite in <b>Safari</b> öffnen.')}</li>
+        <li>${t('Unten auf das <b>Teilen-Symbol</b> tippen (Quadrat mit Pfeil nach oben).')}</li>
+        <li>${t('<b>„Zum Home-Bildschirm“</b> wählen (evtl. etwas nach unten scrollen) und <b>Hinzufügen</b> tippen.')}</li>
+        <li>${t('Ab jetzt die App über das neue Symbol starten.')}</li>
       </ol>
       <h3>Android (Chrome)</h3>
       <ol class="steps">
-        <li>Diese Seite in <b>Chrome</b> öffnen.</li>
-        <li>Oben rechts auf <b>⋮</b> tippen.</li>
-        <li><b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b> wählen.</li>
+        <li>${t('Diese Seite in <b>Chrome</b> öffnen.')}</li>
+        <li>${t('Oben rechts auf <b>⋮</b> tippen.')}</li>
+        <li>${t('<b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b> wählen.')}</li>
       </ol>
-      <p class="muted small">Nach dem ersten Öffnen funktioniert die App auch ohne Internet.</p>`);
+      <p class="muted small">${t('Nach dem ersten Öffnen funktioniert die App auch ohne Internet.')}</p>`);
   }
 
   // ---------- Aussprache einrichten ----------
@@ -1016,31 +1037,31 @@
     const set = St.S.settings;
     const step = St.S.ui.voiceStep || 0;
     if (!Speech.supported) {
-      return `<div class="voice-card warn"><span class="vc-ic">🔇</span><span class="grow"><b>Vorlesen nicht möglich</b>
-        <span>Öffne die App in Chrome (Android) oder Safari (iPhone).</span></span></div>`;
+      return `<div class="voice-card warn"><span class="vc-ic">🔇</span><span class="grow"><b>${t('Vorlesen nicht möglich')}</b>
+        <span>${t('Öffne die App in Chrome (Android) oder Safari (iPhone).')}</span></span></div>`;
     }
     if (Speech.available) {
       const v = Speech.current;
-      return `<div class="voice-card ok"><span class="vc-ic">🔊</span><span class="grow"><b>Aussprache bereit</b>
-        <span>Stimme: ${esc(v.name)}${v.localService ? '' : ' · braucht Internet'}${set.voiceManual ? ' · von Hand gewählt' : ''}</span></span>
-        <button class="btn ghost sm" data-act="test-voice">Probe</button></div>
-        ${set.voiceManual ? '<button class="link-btn" data-act="voice-reset">Stimme wieder automatisch wählen</button>' : ''}`;
+      return `<div class="voice-card ok"><span class="vc-ic">🔊</span><span class="grow"><b>${t('Aussprache bereit')}</b>
+        <span>${t('Stimme')}: ${esc(v.name)}${v.localService ? '' : ' · ' + t('braucht Internet')}${set.voiceManual ? ' · ' + t('von Hand gewählt') : ''}</span></span>
+        <button class="btn ghost sm" data-act="test-voice">${t('Probe')}</button></div>
+        ${set.voiceManual ? `<button class="link-btn" data-act="voice-reset">${t('Stimme wieder automatisch wählen')}</button>` : ''}`;
     }
     if (Speech.missing) {
-      return `<div class="voice-card warn"><span class="vc-ic">🔈</span><span class="grow"><b>Aussprache einrichten</b>
-        <span>${step ? `Weiter bei Schritt ${step + 1}` : 'Einmalig, ca. 2 Minuten'}</span></span>
-        <button class="btn primary sm" data-act="voice-help">${step ? 'Weiter' : 'Einrichten'}</button></div>`;
+      return `<div class="voice-card warn"><span class="vc-ic">🔈</span><span class="grow"><b>${t('Aussprache einrichten')}</b>
+        <span>${step ? t('Weiter bei Schritt {n}', { n: step + 1 }) : t('Einmalig, ca. 2 Minuten')}</span></span>
+        <button class="btn primary sm" data-act="voice-help">${step ? t('Weiter') : t('Einrichten')}</button></div>`;
     }
-    return '<div class="voice-card"><span class="vc-ic">⏳</span><span class="grow"><b>Stimmen werden gesucht …</b></span></div>';
+    return `<div class="voice-card"><span class="vc-ic">⏳</span><span class="grow"><b>${t('Stimmen werden gesucht …')}</b></span></div>`;
   }
 
   // Notlösung: Stimme von Hand wählen, falls eine installierte Stimme nicht erkannt wird
   function manualPickerHTML() {
     if (!Speech.all.length) return '';
     return `
-      <label class="field-row"><span>Stimme von Hand</span><select data-select="manual"><option value="">– wählen –</option>${Speech.all.map(v =>
+      <label class="field-row"><span>${t('Stimme von Hand')}</span><select data-select="manual"><option value="">${t('– wählen –')}</option>${Speech.all.map(v =>
         `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label>
-      <p class="muted small">Nur nötig, wenn deine indonesische Stimme installiert ist, aber nicht erkannt wird.</p>`;
+      <p class="muted small">${t('Nur nötig, wenn deine indonesische Stimme installiert ist, aber nicht erkannt wird.')}</p>`;
   }
   function bindManualPicker(root) {
     const manual = root.querySelector('[data-select="manual"]');
@@ -1085,12 +1106,12 @@
       St.save();
       const v = Speech.current;
       openSheet(`
-        <div class="sheet-head"><h2>Aussprache</h2>${closeBtn()}</div>
+        <div class="sheet-head"><h2>${t('Aussprache')}</h2>${closeBtn()}</div>
         <div class="wiz">
           <div class="wiz-icon">✅</div>
-          <h3>Aussprache ist bereit</h3>
-          <p>Die App liest mit der Stimme <b>${esc(v.name)}</b> vor${v.localService ? ' – auch ohne Internet' : ' (braucht Internet)'}.</p>
-          <button class="btn primary block" data-act="test-voice">${icon('speaker', 18)} Probe hören</button>
+          <h3>${t('Aussprache ist bereit')}</h3>
+          <p>${t('Die App liest mit der Stimme <b>{v}</b> vor', { v: esc(v.name) })}${v.localService ? t(' – auch ohne Internet') : t(' (braucht Internet)')}.</p>
+          <button class="btn primary block" data-act="test-voice">${icon('speaker', 18)} ${t('Probe hören')}</button>
         </div>`);
       return;
     }
@@ -1101,29 +1122,29 @@
     St.save();
     const s = steps[i];
     openSheet(`
-      <div class="sheet-head"><h2>Aussprache einrichten</h2>${closeBtn()}</div>
+      <div class="sheet-head"><h2>${t('Aussprache einrichten')}</h2>${closeBtn()}</div>
       <div class="dots" aria-hidden="true">${steps.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'on' : ''}"></i>`).join('')}</div>
-      ${notFound ? `<div class="callout">Noch keine indonesische Stimme gefunden. Meist hilft es, Chrome ganz zu schließen und die App neu zu öffnen. Prüfe sonst die Schritte davor.</div>` : ''}
+      ${notFound ? `<div class="callout">${t('Noch keine indonesische Stimme gefunden. Meist hilft es, Chrome ganz zu schließen und die App neu zu öffnen. Prüfe sonst die Schritte davor.')}</div>` : ''}
       <div class="wiz">
         <div class="wiz-icon">${s.icon}</div>
-        <div class="wiz-step">Schritt ${i + 1} von ${steps.length}</div>
-        <h3>${s.title}</h3>
-        <p>${s.text}</p>
-        ${s.link ? `<a class="btn ghost block" href="${s.link[1]}" target="_blank" rel="noopener">${s.link[0]}</a>` : ''}
+        <div class="wiz-step">${t('Schritt {n} von {m}', { n: i + 1, m: steps.length })}</div>
+        <h3>${t(s.title)}</h3>
+        <p>${t(s.text)}</p>
+        ${s.link ? `<a class="btn ghost block" href="${s.link[1]}" target="_blank" rel="noopener">${t(s.link[0])}</a>` : ''}
       </div>
       <div class="wiz-nav">
-        ${i > 0 ? `<button class="btn ghost" data-act="voice-step" data-v="${i - 1}">Zurück</button>` : '<span></span>'}
-        ${s.check ? '<button class="btn primary" data-act="voice-recheck">Jetzt prüfen</button>'
-          : `<button class="btn primary" data-act="voice-step" data-v="${i + 1}">Erledigt – weiter</button>`}
+        ${i > 0 ? `<button class="btn ghost" data-act="voice-step" data-v="${i - 1}">${t('Zurück')}</button>` : '<span></span>'}
+        ${s.check ? `<button class="btn primary" data-act="voice-recheck">${t('Jetzt prüfen')}</button>`
+          : `<button class="btn primary" data-act="voice-step" data-v="${i + 1}">${t('Erledigt – weiter')}</button>`}
       </div>
       <div class="wiz-extra">
-        ${s.check ? '' : '<button class="link-btn" data-act="voice-recheck">Stimme schon installiert? Jetzt prüfen</button>'}
-        ${Speech.all.length ? `<details class="advanced"><summary>Stimme wird nicht erkannt?</summary>${manualPickerHTML()}</details>` : ''}
+        ${s.check ? '' : `<button class="link-btn" data-act="voice-recheck">${t('Stimme schon installiert? Jetzt prüfen')}</button>`}
+        ${Speech.all.length ? `<details class="advanced"><summary>${t('Stimme wird nicht erkannt?')}</summary>${manualPickerHTML()}</details>` : ''}
       </div>`, sheet => bindManualPicker(sheet));
   }
 
   // ---------- Sheet (Bottom-Sheet-Dialog) ----------
-  const closeBtn = () => `<button class="icon-btn" data-act="close-sheet" aria-label="Schließen">${icon('x', 22)}</button>`;
+  const closeBtn = () => `<button class="icon-btn" data-act="close-sheet" aria-label="${t('Schließen')}">${icon('x', 22)}</button>`;
   function openSheet(html, onMount) {
     const replacing = !!document.querySelector('.sheet-backdrop');
     closeSheet(true);
@@ -1178,7 +1199,7 @@
     const reviews = St.dueSentenceIds().slice(0, 100);
     const news = St.nextNewIds(info.newLeft);
     if (!learning.length && !reviews.length && !news.length) {
-      toast(info.courseDone ? 'Alle Lektionen sind geschafft!' : 'Die Lektion für heute ist erledigt.');
+      toast(info.courseDone ? t('Alle Lektionen sind geschafft!') : t('Die Lektion für heute ist erledigt.'));
       render();
       return;
     }
@@ -1200,10 +1221,10 @@
   // Vokabeltrainer: fällige Wörter als Karteikarten, oder Extra-Runde mit schwachen Wörtern
   function startTrainer(mode) {
     if (mode === 'extra') {
-      if (St.weakWordIds(3).length < 3) { toast('Lerne zuerst ein paar Wörter.'); return; }
+      if (St.weakWordIds(3).length < 3) { toast(t('Lerne zuerst ein paar Wörter.')); return; }
     } else {
       const p = St.planInfo();
-      if (!(p.wordDue + p.tLearning + p.tNew)) { toast('Gerade ist keine Karte fällig.'); render(true); return; }
+      if (!(p.wordDue + p.tLearning + p.tNew)) { toast(t('Gerade ist keine Karte fällig.')); render(true); return; }
     }
     enterSession(root => new window.Trainer(root, {
       mode: mode || 'due',
@@ -1236,6 +1257,9 @@
       case 'profile': profileSheet(); break;
       case 'ask': ask.q = v; runAsk(v); break;
       case 'ask-clear': ask = { q: '', res: undefined }; render(true); break;
+      case 'lang':
+        if (v !== LANG) { S.settings.lang = v; St.save(); location.reload(); }
+        break;
       case 'start': startSession(); break;
       case 'more': St.addExtraNew(5); startSession(); break;
       case 'trainer': startTrainer('due'); break;
@@ -1243,7 +1267,7 @@
       case 'pull':
         St.pullToTrainer(a.dataset.id);
         closeSheet();
-        toast('Kommt im nächsten Trainer-Durchgang.');
+        toast(t('Kommt im nächsten Trainer-Durchgang.'));
         render(true);
         break;
       case 'pos':
@@ -1281,8 +1305,8 @@
         render(true);
         break;
       case 'test-voice':
-        if (!Speech.supported) toast('Dieser Browser kann nicht vorlesen.');
-        else if (Speech.missing) { toast('Noch keine indonesische Stimme gefunden.'); if (!document.querySelector('.sheet-backdrop')) voiceSheet(); }
+        if (!Speech.supported) toast(t('Dieser Browser kann nicht vorlesen.'));
+        else if (Speech.missing) { toast(t('Noch keine indonesische Stimme gefunden.')); if (!document.querySelector('.sheet-backdrop')) voiceSheet(); }
         else Speech.speak('Selamat pagi! Apa kabar?');
         break;
       case 'voice-step': voiceSheet(+v); break;
@@ -1302,32 +1326,32 @@
         Speech.refresh();
         render(true);
         break;
-      case 'reminder': saveFile('indonesisch-erinnerung.ics', reminderICS(), 'text/calendar'); break;
+      case 'reminder': saveFile(LANG === 'en' ? 'indonesian-reminder.ics' : 'indonesisch-erinnerung.ics', reminderICS(), 'text/calendar'); break;
       case 'export': {
         const d = new Date();
-        const name = `indonesisch-sicherung-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+        const name = `${LANG === 'en' ? 'indonesian-backup' : 'indonesisch-sicherung'}-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
         saveFile(name, St.exportData(), 'application/json');
         break;
       }
       case 'import': document.getElementById('import-file').click(); break;
       case 'reset-all':
-        if (confirm('Wirklich den gesamten Fortschritt löschen? Das kann nicht rückgängig gemacht werden.') &&
-          confirm('Ganz sicher? Alle gelernten Wörter und die Statistik werden gelöscht.')) {
+        if (confirm(t('Wirklich den gesamten Fortschritt löschen? Das kann nicht rückgängig gemacht werden.')) &&
+          confirm(t('Ganz sicher? Alle gelernten Wörter und die Statistik werden gelöscht.'))) {
           St.resetAll();
           tab = 'home';
           render();
-          toast('Fortschritt gelöscht.');
+          toast(t('Fortschritt gelöscht.'));
         }
         break;
       case 'reset-card':
-        if (confirm('Dieses Wort wieder als neu behandeln?')) {
+        if (confirm(t('Dieses Wort wieder als neu behandeln?'))) {
           St.resetCard(a.dataset.id);
           closeSheet();
           render(true);
         }
         break;
       case 'delete-custom':
-        if (confirm('Dieses Wort löschen?')) {
+        if (confirm(t('Dieses Wort löschen?'))) {
           St.removeCustom(a.dataset.id);
           closeSheet();
           render(true);
@@ -1347,7 +1371,7 @@
   Speech.onMissing = () => {
     if (Date.now() - lastMissingHint < 30000) return;
     lastMissingHint = Date.now();
-    toast('Keine indonesische Stimme – Anleitung unter Einstellungen → Aussprache.');
+    toast(t('Keine indonesische Stimme – Anleitung unter Einstellungen → Aussprache.'));
   };
   let voiceState = '';
   Speech.listeners.push(() => {
@@ -1357,7 +1381,7 @@
       St.S.ui.voiceWizard = false;
       St.S.ui.voiceStep = 0;
       St.save();
-      toast('✅ Indonesische Stimme gefunden – die Aussprache ist bereit!');
+      toast(t('✅ Indonesische Stimme gefunden – die Aussprache ist bereit!'));
       if (document.querySelector('.sheet-backdrop .wiz')) voiceSheet();
     }
     const now = `${Speech.loaded}|${Speech.voices.length}|${Speech.all.length}`;
