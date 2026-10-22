@@ -46,6 +46,7 @@ window.UI_EN = {
   "{a} von {b} richtig": "{a} of {b} correct",
   "Die Lektion findest du jederzeit wieder unter <b>Kurs</b>. Jetzt üben wir die neuen Wörter.": "You can find the lesson again any time under <b>Course</b>. Now let's practise the new words.",
   "Nicht ganz.": "Not quite.",
+  "Richtig! (mit Tipp)": "Correct! (with hint)",
   "Neuer Satz": "New sentence",
   "Dein Wort": "Your word",
   "Neues Wort": "New word",

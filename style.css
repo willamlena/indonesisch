@@ -709,3 +709,9 @@ body.in-session { overflow: hidden; }
 .lang-pick { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .lang-pick .seg { flex: 1; }
 .lang-note { margin: 10px 0 0; }
+
+/* Vokabeltrainer: große Karte, Wischen und Tippen auf dem ganzen Bildschirm */
+.trainer .s-body, .trainer .s-foot { touch-action: pan-y; }
+.trainer .fc-card { min-height: 52vh; display: flex; flex-direction: column; }
+.trainer .fc-card .fc-q { flex: 1; min-height: 120px; }
+.trainer { user-select: none; -webkit-user-select: none; }

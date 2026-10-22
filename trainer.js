@@ -42,6 +42,12 @@
         const t = e.target.closest('.tok');
         if (t) Ex.onTokenClick(t);
       });
+      // Irgendwo auf den Bildschirm tippen = Karte umdrehen (außer auf Knöpfe und die obere Leiste)
+      this.sess = root.querySelector('.session');
+      this.sess.addEventListener('click', e => {
+        if (!this.tapReveal || e.target.closest('button, a, .s-top, .tok')) return;
+        this.tapReveal();
+      });
       this.startRound();
     }
 
@@ -215,6 +221,7 @@
       if (dir === 'id' && set.autoplay) setTimeout(() => Speech.speak(card.indo), 200);
       const reveal = () => {
         const back = this.body.querySelector('.fc-back');
+        this.tapReveal = null;
         if (!back.hidden) return;
         back.hidden = false;
         this.body.querySelector('.fc-ask').hidden = true;
@@ -223,7 +230,7 @@
       };
       this.awaitNext = reveal;
       this.foot.querySelector('[data-s="reveal"]').onclick = reveal;
-      this.body.querySelector('.fc-card').addEventListener('click', e => { if (!e.target.closest('button')) reveal(); });
+      this.tapReveal = reveal;
     }
 
     // Nach dem Umdrehen: nach rechts wischen = gewusst, nach links = nicht gewusst (oder die Knöpfe)
@@ -241,15 +248,17 @@
       this.enableSwipe(card, task);
     }
 
+    // Gewischt wird auf dem ganzen Bildschirm – die Karte bewegt sich mit
     enableSwipe(card, task) {
       const el = this.body.querySelector(".fc-card");
+      const area = this.sess;
       let x0 = null, y0 = 0, dx = 0, pid = null, horizontal = false, t0 = 0;
       const reset = () => { el.style.transform = ""; el.classList.remove("lean-yes", "lean-no", "dragging"); };
-      el.onpointerdown = e => {
-        if (this.answered || e.target.closest("button")) return;
+      area.onpointerdown = e => {
+        if (this.answered || e.target.closest("button, .s-top")) return;
         x0 = e.clientX; y0 = e.clientY; dx = 0; pid = e.pointerId; horizontal = false; t0 = Date.now();
       };
-      el.onpointermove = e => {
+      area.onpointermove = e => {
         if (x0 === null || e.pointerId !== pid) return;
         dx = e.clientX - x0;
         if (!horizontal) {
@@ -257,7 +266,7 @@
           if (Math.abs(dx) < 10) return;
           horizontal = true;
           el.classList.add("dragging");
-          try { el.setPointerCapture(pid); } catch (err) { /* egal */ }
+          try { area.setPointerCapture(pid); } catch (err) { /* egal */ }
         }
         el.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
         el.classList.toggle("lean-yes", dx > 50);
@@ -272,8 +281,8 @@
       if (horizontal && (far || flick)) this.answer(card, task, dx > 0 ? 3 : 1);
         else reset();
       };
-      el.onpointerup = end;
-      el.onpointercancel = () => { x0 = null; reset(); };
+      area.onpointerup = end;
+      area.onpointercancel = () => { x0 = null; reset(); };
     }
 
     // Karte wegfliegen lassen, dann werten
@@ -287,6 +296,7 @@
     }
 
     grade(card, task, g) {
+      if (this.sess) this.sess.onpointerdown = this.sess.onpointermove = this.sess.onpointerup = this.sess.onpointercancel = null;
       const d = St.day();
       d.x++;
       d.t += Math.min(60, (Date.now() - this.shownAt) / 1000);

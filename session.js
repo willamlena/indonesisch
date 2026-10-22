@@ -418,9 +418,11 @@
         this.body.querySelector('[data-s="hint"]').hidden = true;
         const res = this.checkTyped(card, val);
         let g = res.g;
-        if (hinted && g === 3) g = 2;
-        input.classList.add(g === 3 ? 'right' : g === 2 ? 'almost' : 'wrong');
-        this.grade(card, task, g, { speak: true, typo: res.typo, typed: val, other: res.other });
+        // Mit Tipp richtig: zählt intern etwas schwächer, wird aber als richtig angezeigt
+        const withHint = hinted && g === 3;
+        if (withHint) g = 2;
+        input.classList.add(g === 3 || withHint ? 'right' : g === 2 ? 'almost' : 'wrong');
+        this.grade(card, task, g, { speak: true, typo: res.typo, typed: val, other: res.other, withHint });
       };
       this.body.querySelector('form').onsubmit = e => { e.preventDefault(); check(); };
       input.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); check(); } };
@@ -611,11 +613,12 @@
 
     feedback(card, g, info, easy) {
       const set = St.S.settings;
-      const cls = g >= 3 ? 'ok' : g === 2 ? 'meh' : 'bad';
-      const title = g >= 3 ? `${icon('check')} ${pick(PRAISE)}` : g === 2 ? t('Fast richtig – kleiner Tippfehler') : t('Nicht ganz – so ist es richtig:');
+      const right = g >= 3 || info.withHint;
+      const cls = right ? 'ok' : g === 2 ? 'meh' : 'bad';
+      const title = right ? `${icon('check')} ${info.withHint ? t('Richtig! (mit Tipp)') : pick(PRAISE)}` : g === 2 ? t('Fast richtig – kleiner Tippfehler') : t('Nicht ganz – so ist es richtig:');
       const other = info.other && info.other.id !== card.id
         ? `<div class="fb-text">${t('„{a}“ heißt: {b}', { a: esc(info.typed.trim()), b: esc(info.other.de) })}</div>` : '';
-      const showEx = g < 3 && card.ex && card.kind === 'w';
+      const showEx = !right && card.ex && card.kind === 'w';
       this.foot.innerHTML = `
         <div class="fb ${cls}">
           <div class="fb-title">${title}</div>
