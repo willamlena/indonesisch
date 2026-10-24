@@ -90,8 +90,8 @@
           </div>
         </div>`;
     } else {
-      // Empfehlung: erst wiederholen (Trainer), dann Neues (Lektion)
-      const trainerFirst = !p.trainerDone && p.wordDue > 0;
+      // Zwei Schritte als Weg: 1. Lektion, 2. Vokabeln. Der aktuelle Schritt ist groß mit
+      // deutlichem Knopf, der nächste kleiner, erledigte bekommen einen Haken.
       const lessonParts = [];
       if (p.newLeft) lessonParts.push(plural(p.newLeft, 'neue Karte', 'neue Karten'));
       if (p.learning) lessonParts.push(t('{n} im Lernen', { n: p.learning }));
@@ -100,12 +100,21 @@
       const trainerText = trainerN
         ? `${plural(trainerN, 'Karte', 'Karten')}${p.tNew ? ` · ${t('{n} neu', { n: p.tNew })}` : ''}`
         : (vc.words ? t('alles wiederholt') : t('füllt sich mit jeder Lektion'));
-      const task = (act, emoji, title, text, done, primary) => `
-        <div class="task${done ? ' done' : ''}">
-          <span class="task-ic">${emoji}</span>
-          <span class="grow"><b>${title}</b><span class="muted">${text}</span></span>
-          ${done ? `<span class="task-check">${icon('check', 20)}</span>` : `<button class="btn ${primary ? 'primary' : 'ghost'} sm" data-act="${act}">${t('Starten')}</button>`}
-        </div>`;
+      const current = !p.lessonDone ? 1 : !p.trainerDone ? 2 : 0;
+      const step = (n, act, emoji, title, text, done) => {
+        const state = done ? 'done' : current === n ? 'now' : 'next';
+        return `
+          <div class="step ${state}">
+            <div class="step-card"${state === 'next' ? ` data-act="${act}" role="button" tabindex="0"` : ''}>
+              <div class="step-head">
+                <span class="step-ic">${emoji}</span>
+                <span class="grow"><b>${title}</b><span class="muted">${done ? t('erledigt') : text}</span></span>
+                ${done ? `<span class="task-check">${icon('check', 20)}</span>` : ''}
+              </div>
+              ${state === 'now' ? `<button class="btn primary block big" data-act="${act}">${t('Starten')}</button>` : ''}
+            </div>
+          </div>`;
+      };
       today = `
         <div class="today-row">
           <div class="ring-wrap">${ring(p.progress)}<span>${Math.round(p.progress * 100)}%</span></div>
@@ -114,8 +123,10 @@
             <p class="muted">${t('ca. {n} Min.', { n: p.minutes })}</p>
           </div>
         </div>
-        ${task('trainer', '🃏', t('Vokabeltrainer'), trainerText, p.trainerDone, trainerFirst)}
-        ${task('start', '📘', fresh ? t('Erste Lektion') : t('Lektion'), lessonParts.join(' · ') || t('erledigt'), p.lessonDone, !trainerFirst)}`;
+        <div class="steps-today">
+          ${step(1, 'start', icon('book', 24), fresh ? t('Erste Lektion') : t('Lektion'), lessonParts.join(' · ') || t('erledigt'), p.lessonDone)}
+          ${step(2, 'trainer', icon('cards', 24), t('Vokabeln wiederholen'), trainerText, p.trainerDone)}
+        </div>`;
     }
 
     const banners = [];

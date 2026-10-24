@@ -184,6 +184,7 @@ window.UI_EN = {
   "Starten": "Start",
   "ca. {n} Min.": "about {n} min",
   "Vokabeltrainer": "Flashcards",
+  "Vokabeln wiederholen": "Review vocabulary",
   "Erste Lektion": "First lesson",
   "Lektion": "Lesson",
   "erledigt": "done",
