@@ -334,7 +334,55 @@
       .map(x => x[0]);
   }
 
-  // ---------- Auswertung ----------
+// ---------- Extra-Runden: stufenweise durch alle bisherigen Wörter ----------
+// Durchgang 1: Wörter mit 1–2 Balken und oft vergessene · 2: dazu 3 Balken · 3: alle.
+// Kein Wort kommt doppelt, bis ein Durchgang fertig ist; danach beginnt es wieder bei 1.
+const EXTRA_STAGES = 3;
+function extraState() {
+  if (!S.extra || !S.extra.stage) S.extra = { stage: 1, done: [] };
+  return S.extra;
+}
+function inExtraStage(id, stage) {
+  const st = strength(id);
+  if (stage >= 3) return true;
+  if (st <= 2 || (S.cards[id].lapses || 0) >= 2) return true;
+  return stage >= 2 && st === 3;
+}
+function extraLeft() {
+  const ex = extraState();
+  const done = new Set(ex.done);
+  return Object.keys(S.cards).filter(id => CARDS[id] && CARDS[id].kind === 'w' && inExtraStage(id, ex.stage) && !done.has(id));
+}
+// Die nächsten n Wörter (die schwächsten zuerst); ist ein Durchgang leer, geht es zur nächsten Stufe
+function extraIds(n) {
+  const ex = extraState();
+  const now = Date.now();
+  const weak = id => (S.cards[id].st === 'R' ? Srs.currentRecall(S.cards[id], now, S.learner.m) : 0) - (S.cards[id].lapses || 0) * 0.05;
+  for (let i = 0; i <= EXTRA_STAGES; i++) {
+    const pool = extraLeft();
+    if (pool.length) return pool.sort((a, b) => weak(a) - weak(b)).slice(0, n);
+    ex.stage = ex.stage >= EXTRA_STAGES ? 1 : ex.stage + 1;
+    ex.done = [];
+  }
+  return [];
+}
+function extraDone(id) {
+  const ex = extraState();
+  if (!ex.done.includes(id)) ex.done.push(id);
+}
+function extraInfo() {
+  const ex = extraState();
+  return { stage: ex.stage, stages: EXTRA_STAGES, left: extraLeft().length };
+}
+// In der Extra-Runde nicht gewusst: kommt auch im normalen Trainer bald wieder
+// (der persönliche Gedächtnis-Faktor bleibt unberührt – es war ja eine vorgezogene Übung)
+function extraForgot(id) {
+  const c = S.cards[id];
+  if (!c || c.st !== 'R') return;
+  S.cards[id] = Srs.review(c, 1, Date.now(), S.learner.m, today()).card;
+}
+
+// ---------- Auswertung ----------
   function streak() {
     let n = 0;
     let d = today();
@@ -396,6 +444,7 @@
     currentUnit, unitProgress,
     avgSecs, recentAccuracy, plan, planInfo, addExtraNew, baseForMinutes,
     introduce, graduate, markKnown, applyReview, reapplyReview, resetCard, weakWordIds,
+    extraIds, extraDone, extraInfo, extraForgot,
     streak, strength, vocabCount, level, levelProgress,
     exportData, importData, resetAll,
   };

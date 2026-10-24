@@ -58,7 +58,7 @@
       this.round = { cards: 0, ok: 0, learned: 0, again: new Set(), start: Date.now() };
       let main;
       if (this.mode === 'extra') {
-        main = shuffle(St.weakWordIds(ROUND)).map(id => ({ id, phase: 'extra' }));
+        main = shuffle(St.extraIds(ROUND)).map(id => ({ id, phase: 'extra' }));
       } else {
         const learning = St.learningIds('trainer').map(id => ({ id, phase: 'learn', step: St.S.cards[id].step || 0 }));
         const news = St.trainerNewIds().slice(0, Math.max(0, MAX_NEW - learning.length)).map(id => ({ id, phase: 'new' }));
@@ -306,6 +306,10 @@
         if (g > 1) this.round.ok++;
       }
       if (g === 1) this.round.again.add(id);
+      if (task.phase === 'extra' && !task.repeat) {
+        St.extraDone(id);
+        if (g === 1) St.extraForgot(id);
+      }
 
       if (task.phase === 'review') {
         St.applyReview(id, g);
@@ -344,7 +348,8 @@
       Speech.stop();
       const r = this.round;
       const today = St.today();
-      const more = this.mode === 'extra' ? 0
+      const xi = this.mode === 'extra' ? St.extraInfo() : null;
+      const more = this.mode === 'extra' ? 1
         : St.dueWordIds().length + St.trainerNewIds().length + St.learningIds('trainer').length;
       const tomorrow = Object.keys(St.S.cards).filter(id => {
         const c = St.S.cards[id];
@@ -366,7 +371,7 @@
             <div class="tile-stat"><b>${r.learned}</b><span>${t('neu gelernt')}</span></div>
             <div class="tile-stat"><b>${Math.max(1, Math.round((Date.now() - r.start) / 60000))}</b><span>${t('Minuten')}</span></div>
           </div>` : ''}
-          <p class="next-info">${more ? (more === 1 ? t('Noch <b>1</b> Karte bereit.') : t('Noch <b>{n}</b> Karten bereit.', { n: more })) : (tomorrow === 1 ? t('Alles wiederholt! Morgen: <b>1</b> Karte.') : t('Alles wiederholt! Morgen: <b>{n}</b> Karten.', { n: tomorrow }))}</p>
+          ${xi ? `<p class="next-info">${xi.left ? t('Durchgang {s} von {m}: noch <b>{n}</b> Wörter.', { s: xi.stage, m: xi.stages, n: xi.left }) : t('Durchgang {s} von {m} geschafft! Als Nächstes kommen auch stärkere Wörter dazu.', { s: xi.stage, m: xi.stages })}</p>` : `<p class="next-info">${more ? (more === 1 ? t('Noch <b>1</b> Karte bereit.') : t('Noch <b>{n}</b> Karten bereit.', { n: more })) : (tomorrow === 1 ? t('Alles wiederholt! Morgen: <b>1</b> Karte.') : t('Alles wiederholt! Morgen: <b>{n}</b> Karten.', { n: tomorrow }))}</p>`}
           ${again.length ? `
             <div class="wrong-list">
               <h3>${t('Diese kommen bald wieder')}</h3>

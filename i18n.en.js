@@ -113,6 +113,8 @@ window.UI_EN = {
   "Alles wiederholt! Morgen: <b>1</b> Karte.": "All reviewed! Tomorrow: <b>1</b> card.",
   "Alles wiederholt! Morgen: <b>{n}</b> Karten.": "All reviewed! Tomorrow: <b>{n}</b> cards.",
   "Nächste Runde": "Next round",
+  "Durchgang {s} von {m}: noch <b>{n}</b> Wörter.": "Pass {s} of {m}: <b>{n}</b> words to go.",
+  "Durchgang {s} von {m} geschafft! Als Nächstes kommen auch stärkere Wörter dazu.": "Pass {s} of {m} done! Next, stronger words will be added too.",
 
   // Gesprächstrainer
   "Übersetzung zeigen": "Show translation",
