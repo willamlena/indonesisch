@@ -1,6 +1,13 @@
 // English user interface. Key = German text in the code (t('…')), value = English text.
 // {n}, {a}, … are placeholders that the app fills in.
 window.UI_EN = {
+  "Sprachen": "Languages",
+  "Ich spreche": "I speak",
+  "Ich lerne": "I'm learning",
+  "Kurs wechseln": "Switch course",
+  "Das ist dein aktueller Kurs.": "This is your current course.",
+  "Dein Lernstand: {n} Wörter": "Your progress: {n} words",
+  "Noch nicht begonnen – du startest bei null.": "Not started yet – you'll start from scratch.",
   "Ich lerne \u2026": "I'm learning \u2026",
   "Jede Sprache hat ihren eigenen Lernstand. Men\u00FCs und Erkl\u00E4rungen erscheinen in der Ausgangssprache.": "Each language has its own progress. Menus and explanations appear in the language you learn from.",
   "Die App hei\u00DFt jetzt Linguara!": "The app is now called Linguara!",

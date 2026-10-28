@@ -755,15 +755,19 @@ body.in-session { overflow: hidden; }
 .step.next .step-ic, .step.done .step-ic { color: var(--muted); opacity: 1; }
 
 /* ---------- Kurse: Lernsprache wählen ---------- */
-.course-pick { display: grid; gap: 8px; margin: 4px 0 8px; }
-.course-opt {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 14px;
+.course-pick { display: grid; gap: 10px; margin: 4px 0 8px; }
+.course-field { display: grid; gap: 6px; }
+.course-field span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.course-field select {
+  width: 100%; min-height: 48px; border-radius: 14px; border: 1.5px solid var(--line); background-color: var(--surface);
+  padding: 0 40px 0 14px; font-size: 16px; font-weight: 600; appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--accent-text) 50%), linear-gradient(135deg, var(--accent-text) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 21px, calc(100% - 15px) 21px; background-size: 5px 5px; background-repeat: no-repeat;
 }
-.course-opt.active { border-color: var(--accent); background: var(--accent-soft); }
-.course-opt b { display: block; font-size: 16px; }
-.course-opt .muted { display: block; }
-.course-flag { font-size: 26px; line-height: 1; flex: none; }
+.course-field select:focus-visible { outline: none; border-color: var(--accent); }
+.course-info { margin: 0; }
+.course-go { width: 100%; }
+.course-go[hidden] { display: none; }
 .flag-btn { font-size: 22px; }
 .banner.move { background: var(--accent-soft); }
 .banner.move .btn { text-decoration: none; }

@@ -153,7 +153,7 @@
           <li>${t('<b>Laut nachsprechen!</b> Tippe auf 🔊 – das macht dich am schnellsten sprechfähig.')}</li>
         </ul>
         <p class="muted">${t('Du kennst schon ein paar Wörter? Tippe bei neuen Wörtern einfach auf „Kenne ich schon“.')}</p>
-        <div class="field-label">${t('Ich lerne …')}</div>
+        <div class="field-label">${t('Sprachen')}</div>
         ${courseList()}
       </section>` : '';
 
@@ -866,28 +866,53 @@
 // Kurse: welche Sprache lerne ich – und von welcher aus? Jede Lernsprache hat ihren eigenen
 // Lernstand; Indonesisch bleibt derselbe, egal ob von Deutsch oder Englisch aus gelernt.
 const COURSE_OPTIONS = [
-  { target: 'id', source: 'de', flag: '🇮🇩', title: 'Indonesisch', sub: 'von Deutsch aus' },
-  { target: 'id', source: 'en', flag: '🇮🇩', title: 'Indonesian', sub: 'from English' },
-  { target: 'en', source: 'de', flag: '🇬🇧', title: 'Englisch', sub: 'von Deutsch aus' },
+  { target: 'id', source: 'de' },
+  { target: 'id', source: 'en' },
+  { target: 'en', source: 'de' },
 ];
-const isCurrentCourse = o => o.target === window.U.TARGET && (window.U.TL.sources.length === 1 || o.source === LANG);
+// Ausgangssprachen heißen immer in ihrer eigenen Sprache, Lernsprachen in der gewählten Ausgangssprache
+const SOURCE_LANGS = [['de', '🇩🇪 Deutsch'], ['en', '🇬🇧 English']];
+const TARGET_NAMES = { id: { de: 'Indonesisch', en: 'Indonesian' }, en: { de: 'Englisch', en: 'English' } };
+const currentSource = () => (window.U.TL.sources.length === 1 ? window.U.TL.sources[0] : LANG);
+const isCurrentCourse = o => o.target === window.U.TARGET && o.source === currentSource();
 function learnedIn(target) {
   try {
     const st = JSON.parse(localStorage.getItem(window.U.TARGETS[target].key) || 'null');
     return st && st.cards ? Object.keys(st.cards).length : 0;
   } catch (e) { return 0; }
 }
-const courseList = () => `<div class="course-pick">${COURSE_OPTIONS.map(o => {
-  const n = learnedIn(o.target), cur = isCurrentCourse(o);
-  return `<button class="course-opt${cur ? ' active' : ''}" data-act="course-set" data-v="${o.target}" data-src="${o.source}">
-    <span class="course-flag">${o.flag}</span>
-    <span class="grow"><b>${o.title}</b><span class="muted small">${o.sub}${n ? ` · ${o.source === 'en' ? `${n} words` : `${n} Wörter`}` : ''}</span></span>
-    ${cur ? `<span class="task-check">${icon('check', 18)}</span>` : ''}
-  </button>`;
-}).join('')}</div>`;
+const targetOptions = (src, sel) => COURSE_OPTIONS.filter(o => o.source === src).map(o =>
+  `<option value="${o.target}"${o.target === sel ? ' selected' : ''}>${window.U.TARGETS[o.target].flag} ${TARGET_NAMES[o.target][src]}</option>`).join('');
+function courseInfo(target, source) {
+  if (isCurrentCourse({ target, source })) return t('Das ist dein aktueller Kurs.');
+  const n = learnedIn(target);
+  return n ? t('Dein Lernstand: {n} Wörter', { n }) : t('Noch nicht begonnen – du startest bei null.');
+}
+const courseList = () => {
+  const src = currentSource(), tgt = window.U.TARGET;
+  return `<div class="course-pick">
+    <label class="course-field"><span>${t('Ich spreche')}</span>
+      <select data-course="source">${SOURCE_LANGS.map(([c, n]) => `<option value="${c}"${c === src ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+    <label class="course-field"><span>${t('Ich lerne')}</span>
+      <select data-course="target">${targetOptions(src, tgt)}</select></label>
+    <p class="muted small course-info">${courseInfo(tgt, src)}</p>
+    <button class="btn primary course-go" data-act="course-go" hidden>${t('Kurs wechseln')}</button>
+  </div>`;
+};
+// Auswahl ändern: Lernsprachen zur Ausgangssprache anbieten, Lernstand und Wechsel-Knopf anzeigen
+document.addEventListener('change', e => {
+  const sel = e.target.closest && e.target.closest('[data-course]');
+  if (!sel) return;
+  const p = sel.closest('.course-pick');
+  const src = p.querySelector('[data-course=source]').value;
+  const tsel = p.querySelector('[data-course=target]');
+  if (sel.dataset.course === 'source') tsel.innerHTML = targetOptions(src, tsel.value);
+  p.querySelector('.course-info').textContent = courseInfo(tsel.value, src);
+  p.querySelector('.course-go').hidden = isCurrentCourse({ target: tsel.value, source: src });
+});
 function courseSheet() {
   openSheet(`
-    <div class="sheet-head"><h2>${t('Ich lerne …')}</h2>${closeBtn()}</div>
+    <div class="sheet-head"><h2>${t('Sprachen')}</h2>${closeBtn()}</div>
     ${courseList()}
     <p class="muted small">${t('Jede Sprache hat ihren eigenen Lernstand. Menüs und Erklärungen erscheinen in der Ausgangssprache.')}</p>`);
 }
@@ -904,7 +929,7 @@ function courseSheet() {
       <header class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('Zurück')}">${icon('back', 26)}</button><h1>${t('Einstellungen')}</h1><span></span></header>
 
       <section class="card">
-        <h3>${t('Ich lerne …')}</h3>
+        <h3>${t('Sprachen')}</h3>
         ${courseList()}
         <p class="muted small lang-note">${t('Jede Sprache hat ihren eigenen Lernstand. Menüs und Erklärungen erscheinen in der Ausgangssprache.')}</p>
       </section>
@@ -957,7 +982,7 @@ function courseSheet() {
         <div class="btn-row">
           <button class="btn ghost" data-act="export">${icon('download', 18)} ${t('Sichern')}</button>
           <button class="btn ghost" data-act="import">${icon('upload', 18)} ${t('Wiederherstellen')}</button>
-          <input type="file" accept="application/json,.json" id="import-file" hidden>
+          <input type="file" accept="application/json,.json,text/plain,.txt" id="import-file" hidden>
         </div>
       </section>
 
@@ -1018,19 +1043,26 @@ function courseSheet() {
   // ---------- Dateien ----------
   function saveFile(name, text, type) {
     const blob = new Blob([text], { type });
-    const file = typeof File === 'function' ? new File([blob], name, { type }) : null;
-    if (type === 'application/json' && file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: name }).catch(() => {});
-      return;
+    if (type === 'application/json' && typeof File === 'function' && navigator.canShare) {
+      // iOS teilt .json-Dateien, Android nur Textdateien – dann als .txt teilen
+      const files = [new File([blob], name, { type }), new File([text], name.replace(/\.json$/, '.txt'), { type: 'text/plain' })];
+      const file = files.find(f => { try { return navigator.canShare({ files: [f] }); } catch (e) { return false; } });
+      if (file) {
+        navigator.share({ files: [file], title: name }).catch(e => { if (e && e.name !== 'AbortError') download(); });
+        return;
+      }
     }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    download();
+    function download() {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
   }
 
   function reminderICS() {
@@ -1300,9 +1332,10 @@ function courseSheet() {
       case 'ask': ask.q = v; runAsk(v); break;
       case 'ask-clear': ask = { q: '', res: undefined }; render(true); break;
       case 'course-sheet': courseSheet(); break;
-      case 'course-set': {
-        const o = COURSE_OPTIONS.find(x => x.target === v && x.source === a.dataset.src);
-        if (o && !isCurrentCourse(o)) { St.save(); window.U.setCourse(o.target, o.source); location.reload(); } else closeSheet();
+      case 'course-go': {
+        const p = a.closest('.course-pick');
+        const o = { target: p.querySelector('[data-course=target]').value, source: p.querySelector('[data-course=source]').value };
+        if (!isCurrentCourse(o)) { St.save(); window.U.setCourse(o.target, o.source); location.reload(); } else closeSheet();
         break;
       }
       case 'start': startSession(); break;
@@ -1374,7 +1407,7 @@ function courseSheet() {
       case 'reminder': saveFile(LANG === 'en' ? 'indonesian-reminder.ics' : 'indonesisch-erinnerung.ics', reminderICS(), 'text/calendar'); break;
       case 'export': {
         const d = new Date();
-        const name = `${LANG === 'en' ? 'indonesian-backup' : 'indonesisch-sicherung'}-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+        const name = `linguara-${window.U.TARGET === 'en' ? (LANG === 'en' ? 'english' : 'englisch') : (LANG === 'en' ? 'indonesian' : 'indonesisch')}-${LANG === 'en' ? 'backup' : 'sicherung'}-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
         saveFile(name, St.exportData(), 'application/json');
         break;
       }
