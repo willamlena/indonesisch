@@ -1,6 +1,6 @@
 // Offline-Speicher. Bei jeder neuen Version VERSION erhöhen – dann holt sich die App
 // die neuen Dateien und zeigt „Neue Version verfügbar".
-const VERSION = 'bahasa-v11';
+const VERSION = 'bahasa-v12';
 const FILES = [
   './', 'index.html', 'style.css', 'manifest.webmanifest',
   'vocab.js', 'vocab2.js', 'vocab.en.js', 'vocab2.en.js', 'grammar.js', 'grammar2.js', 'grammar.en.js', 'grammar2.en.js',

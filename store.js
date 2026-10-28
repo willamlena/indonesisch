@@ -74,7 +74,7 @@
       lang: window.U.LANG, // Sprache der App: 'de' oder 'en'
     },
     learner: { m: 1, base: 10 },
-    cards: {}, days: {}, lessons: {}, custom: [], log: [],
+    cards: {}, days: {}, lessons: {}, lessonsRead: {}, custom: [], log: [],
     pull: [], // Kurswörter, die vorzeitig in den Vokabeltrainer geholt wurden
     profile: {},     // „Über mich“ – wird in die Gespräche eingesetzt
     dialogs: {},     // Ergebnisse im Gesprächstrainer: id → {n, best, last, ts}
@@ -94,7 +94,20 @@
       S.learner = Object.assign(defaults().learner, saved.learner);
       S.ui = saved.ui || {};
     }
-    S.custom.forEach(registerCustom);
+S.custom.forEach(registerCustom);
+if (!S.lessonsRead) S.lessonsRead = {};
+// Grammatik soll in der Lektion kommen, auch wenn man sie vorher im Kurs nur angeschaut hat:
+// Für Themen, in denen noch kein Wort gelernt ist, gilt die Grammatik als „noch nicht in der Lektion gezeigt“.
+if (!S.ui) S.ui = {};
+if (!S.ui.lessonFix1) {
+  UNITS.forEach(u => {
+    if (u.lesson && S.lessons[u.lesson] && !u.ids.some(id => S.cards[id])) {
+      S.lessonsRead[u.lesson] = S.lessons[u.lesson];
+      delete S.lessons[u.lesson];
+    }
+  });
+  S.ui.lessonFix1 = true;
+}
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); }

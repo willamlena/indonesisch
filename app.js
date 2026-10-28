@@ -273,7 +273,7 @@
           <span class="grow">
             <span class="unit-title">${esc(u.icon)} ${esc(u.title)}</span>
             <span class="bar"><i style="width:${(done / total) * 100}%"></i></span>
-            <span class="muted small">${done}/${total}${L ? ` · 📘 ${esc(L.title)}${St.S.lessons[u.lesson] ? ' ✓' : ''}` : ''}</span>
+            <span class="muted small">${done}/${total}${L ? ` · 📘 ${esc(L.title)}${St.S.lessons[u.lesson] || St.S.lessonsRead[u.lesson] ? ' ✓' : ''}` : ''}</span>
           </span>
         </button>`;
     };
@@ -316,7 +316,7 @@
     const rows = u.ids.map(id => wordRow(St.CARDS[id])).join('');
     openSheet(`
       <div class="sheet-head"><h2>${esc(u.icon)} ${esc(u.title)}</h2>${closeBtn()}</div>
-      ${L ? `<button class="lesson-link" data-act="lesson" data-v="${u.lesson}">${icon('book', 20)}<span>${t('Grammatik')}: ${esc(L.title)}</span>${St.S.lessons[u.lesson] ? `<span class="pill">${t('gelesen')}</span>` : `<span class="pill accent">${t('neu')}</span>`}</button>` : ''}
+      ${L ? `<button class="lesson-link" data-act="lesson" data-v="${u.lesson}">${icon('book', 20)}<span>${t('Grammatik')}: ${esc(L.title)}</span>${St.S.lessons[u.lesson] || St.S.lessonsRead[u.lesson] ? `<span class="pill">${t('gelesen')}</span>` : `<span class="pill accent">${t('neu')}</span>`}</button>` : ''}
       <div class="word-list">${rows || `<p class="muted">${t('Noch keine Wörter.')}</p>`}</div>`);
   }
 
@@ -325,7 +325,7 @@
     openSheet(`
       <div class="sheet-head"><h2>📘 ${esc(L.title)}</h2>${closeBtn()}</div>
       <article class="lesson">${lessonHTML(L)}</article>`);
-    if (!St.S.lessons[key]) { St.S.lessons[key] = Date.now(); St.save(); }
+    if (!St.S.lessons[key] && !St.S.lessonsRead[key]) { St.S.lessonsRead[key] = Date.now(); St.save(); }
   }
 
   // „Level 2 · Thema 5“

@@ -207,6 +207,7 @@
             <div class="example">
               <div class="ex-row"><div><div class="ex-id">${esc(card.ex)}</div><div class="ex-de">${esc(card.exde)}</div></div>${speakBtn(card.ex)}</div>
             </div>` : ''}
+          ${u && u.lesson && window.LESSONS[u.lesson] ? `<button class="lesson-link" data-act="lesson" data-v="${u.lesson}">${icon('book', 20)}<span>${t('Grammatik')}: ${esc(window.LESSONS[u.lesson].title)}</span></button>` : ''}
           <p class="hint">${isS ? t('Hör dir den Satz an und sprich ihn laut nach.') : t('Tippe auf 🔊 und sprich das Wort laut nach.')}</p>
         </div>`;
       this.foot.innerHTML = `
