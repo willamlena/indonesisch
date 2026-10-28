@@ -10,7 +10,7 @@
   const slowBtn = text =>
     `<button class="speak-btn slow" data-say="${esc(text)}" data-slow="1" aria-label="${t('Langsam vorlesen')}">${icon('turtle', 20)}</button>`;
 
-  const PRAISE = [t('Richtig!'), 'Bagus!', 'Benar!', 'Super!', 'Mantap!', t('Genau!')];
+  const PRAISE = [t('Richtig!'), ...window.U.TL.praise, 'Super!', t('Genau!')];
 
   class Session {
     // opts: { mode: 'daily' | 'practice', reviews, learning, news, onExit(summary|null) }
@@ -347,7 +347,7 @@
 
     exMcDeId(card, task) {
       this.body.innerHTML = `
-        ${this.kicker('Wie sagt man das auf Indonesisch?', card)}
+        ${this.kicker('Wie sagt man das auf {L}?', card)}
         <div class="prompt"><div class="big-de">${esc(card.de)}</div></div>
         <div class="options"></div>`;
       const opts = shuffle([{ label: card.indo, ok: true }, ...this.distractors(card, 'indo', 3).map(c => ({ label: c.indo }))]);
@@ -389,7 +389,7 @@
     exType(card, task) {
       const first = St.answersFor(card)[0];
       this.body.innerHTML = `
-        ${this.kicker('Schreib es auf Indonesisch', card)}
+        ${this.kicker('Schreib es auf {L}', card)}
         <div class="prompt"><div class="big-de">${esc(card.de)}</div></div>
         <form class="type-form" autocomplete="off">
           <input class="type-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="${t('Antwort eintippen …')}" aria-label="${t('Antwort')}">
@@ -455,7 +455,7 @@
     exFlip(card, task) {
       const isS = card.kind === 's';
       this.body.innerHTML = `
-        ${this.kicker('Sag es laut auf Indonesisch', card)}
+        ${this.kicker('Sag es laut auf {L}', card)}
         <div class="prompt"><div class="${isS ? 'big-de sentence' : 'big-de'}">${esc(card.de)}</div></div>
         <div class="flip-answer" hidden>
           <div class="prompt"><div class="${isS ? 'big-sentence' : 'big-word'}">${esc(card.indo)}</div>${speakBtn(card.indo)}</div>
@@ -503,7 +503,7 @@
       bank = shuffle(bank).map((b, i) => Object.assign(b, { i, used: false }));
       const chosen = [];
       this.body.innerHTML = `
-        ${this.kicker('Bilde den Satz auf Indonesisch', card)}
+        ${this.kicker('Bilde den Satz auf {L}', card)}
         <div class="prompt"><div class="big-de sentence">${esc(card.de)}</div></div>
         <div class="tiles-answer" aria-live="polite"></div>
         <div class="tiles-bank"></div>`;
@@ -647,8 +647,8 @@
       const st = this.stats;
       const secs = Math.round((Date.now() - this.start) / 1000);
       const acc = st.answers ? st.correct / st.answers : 1;
-      const [head, sub] = acc >= 0.85 ? ['Bagus sekali!', t('Sehr gut gemacht!')]
-        : acc >= 0.65 ? ['Kerja bagus!', t('Gute Arbeit!')] : ['Tetap semangat!', t('Bleib dran – Fehler gehören dazu!')];
+      const [head, sub] = acc >= 0.85 ? [window.U.TL.great, t('Sehr gut gemacht!')]
+        : acc >= 0.65 ? [window.U.TL.good, t('Gute Arbeit!')] : [window.U.TL.keep, t('Bleib dran – Fehler gehören dazu!')];
       const wrong = [...st.wrong].map(id => St.CARDS[id]).filter(Boolean).slice(0, 8);
       const streak = St.streak();
       const moreAvailable = this.mode === 'daily' && St.nextNewIds(1).length > 0;

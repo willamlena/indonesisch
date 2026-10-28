@@ -1,30 +1,100 @@
-// Kleine Helfer: Sprache der App (Deutsch/Englisch), HTML-Escaping, Textvergleich, Sprachausgabe,
-// Icons, Lektions-Markup.
+// Linguara – kleine Helfer: welcher Kurs (Lernsprache), Sprache der Oberfläche, HTML-Escaping,
+// Textvergleich, Sprachausgabe, Icons, Lektions-Markup.
 (function () {
-  // ---------- Sprache der App: Deutsch oder Englisch ----------
-  // Gespeichert in den Einstellungen. Ohne Einstellung: bisherige Nutzer Deutsch,
-  // neue Nutzer je nach Sprache des Handys.
+  // ---------- Kurse: welche Sprache wird gelernt? ----------
+  // Der Lernstand gehört zur Lernsprache (eigener Speicher je Sprache) – egal, von welcher
+  // Sprache aus man lernt. Gewählt wird in den Einstellungen; gemerkt in „linguara.app“.
+  const APP_KEY = 'linguara.app';
+  const TARGETS = {
+    id: {
+      code: 'id', bcp: 'id-ID', voice: /^(id|in)([-_]|$)/i, voiceName: /indones/i, flag: '🇮🇩',
+      key: 'bahasa-indonesisch.v1', sources: ['de', 'en'],
+      name: { de: 'Indonesisch', en: 'Indonesian' }, adj: { de: 'indonesisch', en: 'Indonesian' }, lfull: { de: 'Indonesisch (Indonesien)', en: 'Indonesian (Indonesia)' }, iosVoice: 'Damayanti',
+      greet: ['Selamat pagi!', 'Selamat siang!', 'Selamat sore!', 'Selamat malam!'], welcome: 'Selamat datang! 👋',
+      praise: ['Bagus!', 'Benar!', 'Mantap!'], great: 'Bagus sekali!', good: 'Kerja bagus!', keep: 'Tetap semangat!',
+      sample: 'Selamat pagi! Apa kabar?', sample2: 'Terima kasih banyak!', hello: 'Halo! Selamat belajar!', bye: 'Sampai besok!', bye2: 'Sampai jumpa!',
+    },
+    en: {
+      code: 'en', bcp: 'en-GB', voice: /^en([-_]|$)/i, voiceName: /english/i, prefer: /GB|UK|United Kingdom|Daniel|Kate|Serena|Arthur|Martha/i, flag: '🇬🇧',
+      key: 'linguara-englisch.v1', sources: ['de'],
+      name: { de: 'Englisch', en: 'English' }, adj: { de: 'englisch', en: 'English' }, lfull: { de: 'Englisch (Vereinigtes Königreich)', en: 'English (United Kingdom)' }, iosVoice: 'Daniel',
+      greet: ['Good morning!', 'Good afternoon!', 'Good afternoon!', 'Good evening!'], welcome: 'Welcome! 👋',
+      praise: ['Great!', 'Brilliant!', 'Lovely!'], great: 'Brilliant!', good: 'Nice work!', keep: 'Keep going!',
+      // Oberflächentexte, die beim Englischkurs anders lauten (Schlüssel = deutscher Text im Code)
+      override: {
+        'Ding, Ort oder Person – z. B. kelapa (Kokosnuss), pantai (Strand)': 'Ding, Ort oder Person – z. B. coconut (Kokosnuss), beach (Strand)',
+        'Eigenschaft – z. B. segar (frisch), lucu (süß, lustig)': 'Eigenschaft – z. B. fresh (frisch), cosy (gemütlich)',
+        'Tätigkeit – Deutsch bitte in der Grundform, z. B. „schwimmen“': 'Tätigkeit – Englisch ohne „to“, z. B. swim (schwimmen)',
+        'z. B. kelapa': 'z. B. coconut',
+        'z. B. Saya mau minum air kelapa.': 'z. B. I love fresh coconut water.',
+        'z. B. Ich möchte Kokoswasser trinken.': 'z. B. Ich liebe frisches Kokoswasser.',
+        'Alltag': 'US',
+        'Alltagsformen zeigen': 'Amerikanische Varianten zeigen',
+        'z. B. tidak → nggak, sudah → udah': 'z. B. flat → apartment, holiday → vacation',
+        'Wo bist du in Indonesien?': 'In welcher Stadt lebst du?',
+        'z. B. Bali, Ubud, Jakarta': 'z. B. Wien, London, Sydney',
+        'B1–B2 · Leben in Indonesien, Beruf, Umgangssprache, Meinungen': 'B1–B2 · Leben im Ausland, Beruf, Umgangssprache, Meinungen',
+        'Du hast alle {n} Karten der Grundlagen gelernt. Ab jetzt geht es mit <b>Level 2 – Fortgeschritten</b> weiter: Leben in Indonesien, Beruf, Umgangssprache und eigene Meinungen.': 'Du hast alle {n} Karten der Grundlagen gelernt. Ab jetzt geht es mit <b>Level 2 – Fortgeschritten</b> weiter: Leben im Ausland, Beruf, Umgangssprache und eigene Meinungen.',
+      },
+      sample: 'Good morning! How are you?', sample2: 'Thank you very much!', hello: 'Hello! Happy learning!', bye: 'See you tomorrow!', bye2: 'See you soon!',
+    },
+  };
+  const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+  const app0 = readJSON(APP_KEY) || {};
+  const TARGET = TARGETS[app0.target] ? app0.target : 'id';
+  const TL = TARGETS[TARGET];
+
+  // ---------- Sprache der Oberfläche ----------
+  // Englischkurs: immer Deutsch. Indonesischkurs: Deutsch oder Englisch (Einstellung im Kurs);
+  // ohne Einstellung: bisherige Nutzer Deutsch, neue je nach Sprache des Handys.
   const LANG = (() => {
-    try {
-      const s = JSON.parse(localStorage.getItem('bahasa-indonesisch.v1') || 'null');
-      if (s && s.settings && (s.settings.lang === 'de' || s.settings.lang === 'en')) return s.settings.lang;
-      if (s && s.cards && Object.keys(s.cards).length) return 'de';
-    } catch (e) { /* kein Speicher – Gerätesprache nehmen */ }
+    if (TL.sources.length === 1) return TL.sources[0];
+    const s = readJSON(TL.key);
+    if (s && s.settings && TL.sources.includes(s.settings.lang)) return s.settings.lang;
+    if (s && s.cards && Object.keys(s.cards).length) return 'de';
     const nav = typeof navigator !== 'undefined' ? ((navigator.languages && navigator.languages[0]) || navigator.language || '') : '';
     return !nav || /^de\b/i.test(nav) ? 'de' : 'en';
   })();
 
+  // Kurs wechseln (Lernsprache und – beim Indonesischkurs – Ausgangssprache), danach neu laden
+  function setCourse(target, source) {
+    if (!TARGETS[target]) return;
+    try {
+      localStorage.setItem(APP_KEY, JSON.stringify(Object.assign({}, readJSON(APP_KEY), { target })));
+      if (source && TARGETS[target].sources.length > 1) {
+        const st = readJSON(TARGETS[target].key);
+        if (st) { st.settings = Object.assign(st.settings || {}, { lang: source }); localStorage.setItem(TARGETS[target].key, JSON.stringify(st)); }
+        else localStorage.setItem(TARGETS[target].key, JSON.stringify({ v: 1, settings: { lang: source } }));
+      }
+    } catch (e) { /* Speicher voll – egal, dann bleibt alles, wie es ist */ }
+  }
+
   // Oberflächentexte: Schlüssel ist der deutsche Text, die englische Fassung steht in i18n.en.js.
-  // {name}-Platzhalter werden mit vars gefüllt.
+  // {name}-Platzhalter werden mit vars gefüllt; {L} (Lernsprache), {adj}/{Adj} (indonesisch/englisch)
+  // und {bye} gibt es immer.
+  const BASEVARS = {
+    L: TL.name[LANG], adj: TL.adj[LANG], Adj: TL.adj[LANG].charAt(0).toUpperCase() + TL.adj[LANG].slice(1),
+    bye: TL.bye, bye2: TL.bye2, Lfull: TL.lfull[LANG], iosVoice: TL.iosVoice,
+  };
   const t = (s, vars) => {
+    if (TL.override && TL.override[s]) s = TL.override[s];
     let r = s;
     if (LANG === 'en') {
       const D = window.UI_EN || {};
       if (Object.prototype.hasOwnProperty.call(D, s)) r = D[s];
       else (window.__missingEN = window.__missingEN || new Set()).add(s);
     }
-    return vars ? r.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m)) : r;
+    const v = vars ? Object.assign({}, BASEVARS, vars) : BASEVARS;
+    return r.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m));
   };
+
+  // Englischkurs: dessen Inhalte werden zum aktiven Kurs
+  if (TARGET === 'en') {
+    window.COURSE = window.COURSE_ENGLISH || [];
+    window.LESSONS = window.LESSONS_ENGLISH || {};
+    window.DIALOGS = window.DIALOGS_ENGLISH || [];
+    window.DIALOG_GROUPS = window.DIALOG_GROUPS_ENGLISH || window.DIALOG_GROUPS;
+  }
 
   // Lerninhalte auf Englisch umstellen (Karten, Lektionen, Gespräche) – vor dem Aufbau des Kurses
   function applyEnglishContent() {
@@ -74,10 +144,10 @@
     const GE = window.DIALOG_GROUPS_EN || {};
     (window.DIALOG_GROUPS || []).forEach(g => { if (GE[g.key]) g.title = GE[g.key]; });
   }
-  if (LANG === 'en') applyEnglishContent();
+  if (TARGET === 'id' && LANG === 'en') applyEnglishContent();
   if (typeof document !== 'undefined' && document.documentElement) {
     document.documentElement.lang = LANG;
-    if (LANG === 'en') document.title = 'Bahasa – Learn Indonesian';
+    document.title = 'Linguara – ' + t('{L} lernen');
   }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -127,11 +197,13 @@
 
   // ---------- Sprachausgabe (Text-to-Speech des Handys) ----------
   // Indonesisch hat den Sprachcode „id"; Android meldet teils noch den alten Code „in".
-  const isIndonesian = v => /^(id|in)([-_]|$)/i.test(v.lang) || /indones/i.test(v.name);
+  // Stimme der Lernsprache (Indonesisch meldet Android teils als „in“)
+  const isTarget = v => TL.voice.test(v.lang) || TL.voiceName.test(v.name);
+  const voiceRank = v => (v.localService ? 2 : 0) + (TL.prefer && (TL.prefer.test(v.lang) || TL.prefer.test(v.name)) ? 1 : 0);
 
   const Speech = {
     supported: typeof window !== 'undefined' && 'speechSynthesis' in window,
-    voices: [],   // indonesische Stimmen (lokale zuerst, die funktionieren offline)
+    voices: [],   // Stimmen der Lernsprache (lokale zuerst, die funktionieren offline)
     all: [],      // alle Stimmen des Geräts
     loaded: false,
     listeners: [],
@@ -151,7 +223,7 @@
       if (all.length) this.loaded = true;
       this.all = all;
       const set = window.Store && window.Store.S.settings;
-      const found = all.filter(isIndonesian).sort((a, b) => (b.localService ? 1 : 0) - (a.localService ? 1 : 0));
+      const found = all.filter(isTarget).sort((a, b) => voiceRank(b) - voiceRank(a));
       // Von Hand gewählte Stimme zählt auch – falls eine Stimme nicht automatisch erkannt wird
       const manual = set && set.voiceManual && all.find(v => v.voiceURI === set.voice);
       if (manual && !found.includes(manual)) found.unshift(manual);
@@ -177,7 +249,7 @@
       const clean = speakable(text);
       const u = new SpeechSynthesisUtterance(clean);
       const v = this.current;
-      if (v) { u.voice = v; u.lang = v.lang.replace('_', '-'); } else u.lang = 'id-ID';
+      if (v) { u.voice = v; u.lang = v.lang.replace('_', '-'); } else u.lang = TL.bcp;
       u.rate = Math.max(0.4, set.rate * (opts.slow ? 0.7 : 1));
       u.onend = finish;
       u.onerror = finish;
@@ -206,7 +278,7 @@
       this.stop();
       const R = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new R();
-      rec.lang = opts.lang || 'id-ID';
+      rec.lang = opts.lang || TL.bcp;
       rec.interimResults = true;
       rec.continuous = false;
       rec.maxAlternatives = 3;
@@ -361,5 +433,5 @@
     btn.onclick = check;
   }
 
-  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast, selectThenCheck, t, LANG };
+  window.U = { esc, shuffle, pick, norm, lev, escRe, inline, speakable, Speech, Listen, icon, lessonHTML, toast, selectThenCheck, t, LANG, TARGET, TL, TARGETS, setCourse };
 })();

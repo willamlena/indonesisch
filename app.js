@@ -50,10 +50,11 @@
   // ---------- Startseite ----------
   function greeting() {
     const h = new Date().getHours();
-    if (h < 11) return ['Selamat pagi!', t('Guten Morgen')];
-    if (h < 15) return ['Selamat siang!', t('Guten Tag')];
-    if (h < 18) return ['Selamat sore!', t('Guten Nachmittag')];
-    return ['Selamat malam!', t('Guten Abend')];
+    const g = window.U.TL.greet;
+    if (h < 11) return [g[0], t('Guten Morgen')];
+    if (h < 15) return [g[1], t('Guten Tag')];
+    if (h < 18) return [g[2], t('Guten Nachmittag')];
+    return [g[3], t('Guten Abend')];
   }
 
   function ring(p) {
@@ -83,7 +84,7 @@
         <div class="today-done">
           <div class="big-emoji">${p.courseDone ? '🏆' : '✅'}</div>
           <h2>${p.courseDone ? t('Kurs abgeschlossen!') : t('Geschafft für heute!')}</h2>
-          <p class="muted">${p.courseDone ? t('Alle Kurswörter sind gelernt. Der Vokabeltrainer wiederholt sie weiter – und du kannst eigene Wörter hinzufügen.') : t('Morgen warten neue Wörter und die passenden Wiederholungen. Sampai besok!')}</p>
+          <p class="muted">${p.courseDone ? t('Alle Kurswörter sind gelernt. Der Vokabeltrainer wiederholt sie weiter – und du kannst eigene Wörter hinzufügen.') : t('Morgen warten neue Wörter und die passenden Wiederholungen. {bye}')}</p>
           <div class="btn-stack">
             ${p.courseDone ? '' : `<button class="btn primary block" data-act="more">${t('+5 neue Wörter')}</button>`}
             ${learnedAny ? `<button class="btn ghost block" data-act="extra">${t('Extra-Runde: schwache Wörter')}</button>` : ''}
@@ -130,6 +131,7 @@
     }
 
     const banners = [];
+    if (/\/indonesisch(\/|$)/.test(location.pathname)) banners.push(`<div class="banner move"><span>🌿 <b>${t('Die App heißt jetzt Linguara!')}</b> ${t('Öffne sie unter der neuen Adresse und leg sie neu auf den Homescreen – dein Lernstand ist dort schon da.')}</span><a class="btn sm primary" href="https://willamlena.github.io/linguara/">${t('Öffnen')}</a></div>`);
     if (swWaiting) banners.push(`<div class="banner"><span>✨ ${t('Eine neue Version ist da.')}</span><button class="btn sm primary" data-act="sw-update">${t('Aktualisieren')}</button></div>`);
     if (Speech.missing && !S.ui.voiceHidden) {
       const step = S.ui.voiceStep || 0;
@@ -141,8 +143,8 @@
 
     const welcome = fresh && !S.ui.welcomed ? `
       <section class="card welcome">
-        <h2>Selamat datang! 👋</h2>
-        <p>${t("Willkommen bei deinem Indonesisch-Kurs. So funktioniert's:")}</p>
+        <h2>${esc(window.U.TL.welcome)}</h2>
+        <p>${t("Willkommen bei deinem {L}-Kurs. So funktioniert's:")}</p>
         <ul>
           <li>${t('<b>Jeden Tag ca. {n} Minuten.</b> Die App plant alles für dich.', { n: S.settings.minutes })}</li>
           <li>${t('<b>Wiederholung zur richtigen Zeit:</b> Was du sicher kannst, kommt seltener. Was schwerfällt, kommt öfter.')}</li>
@@ -151,7 +153,8 @@
           <li>${t('<b>Laut nachsprechen!</b> Tippe auf 🔊 – das macht dich am schnellsten sprechfähig.')}</li>
         </ul>
         <p class="muted">${t('Du kennst schon ein paar Wörter? Tippe bei neuen Wörtern einfach auf „Kenne ich schon“.')}</p>
-        <div class="lang-pick"><span class="muted small">${t('Sprache der App')}:</span>${langSeg()}</div>
+        <div class="field-label">${t('Ich lerne …')}</div>
+        ${courseList()}
       </section>` : '';
 
     // Level 2 erreicht: einmal feiern
@@ -184,6 +187,7 @@
       <header class="topbar">
         <div><div class="greet">${hi}</div><div class="muted">${hiDe}</div></div>
         <div class="topbar-actions">
+          <button class="icon-btn flag-btn" data-act="course-sheet" aria-label="${t('Ich lerne …')}">${window.U.TL.flag}</button>
           <button class="icon-btn" data-act="tab" data-v="stats" aria-label="${t('Statistik')}">${icon('stats', 24)}</button>
           <button class="icon-btn" data-act="tab" data-v="settings" aria-label="${t('Einstellungen')}">${icon('settings', 24)}</button>
         </div>
@@ -252,7 +256,7 @@
           <summary><b>${t('So funktioniert der Trainer')}</b></summary>
           <div class="method">
             <p>${t('<b>Karteikarten:</b> Schau dir die Vorderseite an, sag die Antwort laut und dreh die Karte um. Dann wischst du sie <b>nach rechts</b>, wenn du es gewusst hast, oder <b>nach links</b>, wenn nicht. Alternativ tippst du auf die Knöpfe darunter.')}</p>
-            <p>${t('<b>Beide Richtungen:</b> Mal siehst du das indonesische Wort, mal das deutsche – so lernst du verstehen <i>und</i> selbst sprechen.')}</p>
+            <p>${t('<b>Beide Richtungen:</b> Mal siehst du das {adj}e Wort, mal das deutsche – so lernst du verstehen <i>und</i> selbst sprechen.')}</p>
             <p>${t('<b>Automatisch befüllt:</b> Jedes Wort aus den Lektionen landet hier. Gekonnte Wörter kommen in immer größeren Abständen, vergessene schon bald wieder.')}</p>
             <p>${t('<b>Passende Beispielsätze:</b> Zu jeder Karte zeigt die App den Satz, den du mit deinem Wortschatz am besten verstehst. Unbekannte Wörter sind unterstrichen – antippen zeigt die Übersetzung.')}</p>
           </div>
@@ -377,7 +381,7 @@
     const chip = (f, label) => `<button class="chip-btn${wordFilter.f === f ? ' active' : ''}" data-act="filter" data-v="${f}">${label}</button>`;
     return `
       <header class="topbar"><h1>${t('Wörter')}</h1><button class="icon-btn" data-act="addword" aria-label="${t('Eigenes Wort hinzufügen')}">${icon('plus', 24)}</button></header>
-      <div class="search">${icon('search', 20)}<input type="search" placeholder="${t('Suchen – Deutsch oder Indonesisch')}" value="${esc(wordFilter.q)}" aria-label="${t('Suchen')}"></div>
+      <div class="search">${icon('search', 20)}<input type="search" placeholder="${t('Suchen – Deutsch oder {L}')}" value="${esc(wordFilter.q)}" aria-label="${t('Suchen')}"></div>
       <div class="chips">${chip('all', t('Alle'))}${chip('weak', t('Schwierig'))}${chip('strong', t('Sicher'))}${chip('sent', t('Sätze'))}${chip('custom', t('Eigene'))}</div>
       <div class="word-list" id="word-list">${wordListHTML()}</div>`;
   }
@@ -458,7 +462,7 @@
       <div class="sheet-head"><h2>${t('Eigene Vokabel')}</h2>${closeBtn()}</div>
       <p class="muted">${t('Sie kommt sofort in den Vokabeltrainer – mit Beispielsätzen aus Wörtern, die du schon kennst.')}</p>
       <form class="form" id="add-form" autocomplete="off" novalidate>
-        <label>${t('Indonesisch')}<input name="indo" required autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${t('z. B. kelapa')}"></label>
+        <label>${t('{L}')}<input name="indo" required autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${t('z. B. kelapa')}"></label>
         <label>${t('Deutsch')}<input name="de" required placeholder="${t('z. B. Kokosnuss')}"></label>
         <div>
           <div class="field-label">${t('Wortart')}</div>
@@ -496,7 +500,7 @@
       form.onsubmit = e => {
         e.preventDefault();
         const indo = form.indo.value.trim(), de = form.de.value.trim();
-        if (!indo || !de) { toast(t('Bitte Indonesisch und Deutsch ausfüllen.')); return; }
+        if (!indo || !de) { toast(t('Bitte {L} und Deutsch ausfüllen.')); return; }
         if (!pos) { toast(t('Bitte wähle die Wortart.')); return; }
         const key = St.norm(indo);
         if (St.S.custom.some(c => St.norm(c.indo) === key)) { toast(t('Dieses Wort hast du schon hinzugefügt.')); return; }
@@ -521,7 +525,9 @@
   }
 
   // ---------- Gespräche ----------
-  const ASK_EXAMPLES = LANG === 'en'
+  const ASK_EXAMPLES = window.U.TARGET === 'en'
+    ? ['Im Hotel ist mein Zimmer zu laut', 'Mein Koffer ist am Flughafen nicht angekommen', 'Eine E-Mail an einen Kunden schreiben', 'Unterschied zwischen since und for', 'Was heißt Kokosnuss?']
+    : LANG === 'en'
     ? ['I got the wrong food at a restaurant', 'I need to see a doctor', 'Talking to the landlord about the rent', 'Difference between tidak and bukan', 'What is coconut in Indonesian?']
     : ['Im Restaurant kam das falsche Essen', 'Ich muss zum Arzt', 'Mit dem Vermieter über die Miete reden', 'Unterschied zwischen tidak und bukan', 'Was heißt Kokosnuss?'];
   const unitOf = d => St.UNITS.find(u => u.key === d.unit) || St.UNITS[0];
@@ -555,7 +561,7 @@
       <div class="sent-row"><span class="grow"><b>${esc(s.indo)}</b><span class="muted">${esc(s.de)}</span></span>
         <button class="speak-btn" data-say="${esc(s.indo)}" aria-label="${t('Vorlesen')}">${icon('speaker', 20)}</button></div>`).join('')}</div>`);
     if (!parts.length) parts.push(`<p>${t('Dazu habe ich leider nichts Passendes gefunden.')}</p>
-      <p class="muted small">${t('Versuch es mit anderen Wörtern – z. B. „Arzt“, „Wohnung mieten“, „Rechnung“ oder einem indonesischen Wort.')}</p>`);
+      <p class="muted small">${t('Versuch es mit anderen Wörtern – z. B. „Arzt“, „Wohnung mieten“, „Rechnung“ oder einem {adj}en Wort.')}</p>`);
     return `<section class="card ask-results">${head}${parts.join('')}</section>`;
   }
 
@@ -604,7 +610,7 @@
         <details>
           <summary><b>${t('So funktioniert der Gesprächstrainer')}</b></summary>
           <div class="method">
-            <p>${t('<b>Gespräche nachspielen:</b> Dein Gegenüber spricht (🔊), du antwortest auf Indonesisch – tippen oder mit 🎤 sprechen. Es gibt nicht nur eine richtige Antwort: Die App achtet auf die wichtigen Wörter und ist bei kleinen Tippfehlern großzügig.')}</p>
+            <p>${t('<b>Gespräche nachspielen:</b> Dein Gegenüber spricht (🔊), du antwortest auf {L} – tippen oder mit 🎤 sprechen. Es gibt nicht nur eine richtige Antwort: Die App achtet auf die wichtigen Wörter und ist bei kleinen Tippfehlern großzügig.')}</p>
             <p>${t('<b>Hilfe, wenn du hängst:</b> Unten gibt es einen Tipp, eine Auswahl oder die Lösung. Tippe auf einen Satz deines Gegenübers, um die Übersetzung zu sehen – oder schalte oben „DE“ ein.')}</p>
             <p>${t('<b>Freihand-Modus 🎧:</b> Die App hört nach jedem Satz automatisch zu – wie ein echtes Gespräch, ganz ohne Tippen.')}</p>
             <p>${t('<b>Am Ende:</b> Du siehst, was gut lief, und kannst neue Wörter und schwierige Sätze mit einem Tipp in den Vokabeltrainer übernehmen.')}</p>
@@ -674,7 +680,7 @@
         ${list.map(o => { const v = o[0]; return `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(label(o))}${v.toLowerCase() === label(o).toLowerCase() ? '' : ` – ${esc(v)}`}</option>`; }).join('')}
         <option value="__other" ${known ? '' : 'selected'}>${t('Anderes …')}</option>
       </select>
-      <input name="${name}Other" value="${known ? '' : esc(val)}" placeholder="${t('auf Indonesisch oder Deutsch')}" ${known ? 'hidden' : ''}>`;
+      <input name="${name}Other" value="${known ? '' : esc(val)}" placeholder="${t('auf {L} oder Deutsch')}" ${known ? 'hidden' : ''}>`;
     };
     let anrede = P.anrede || '';
     openSheet(`
@@ -857,9 +863,34 @@
   }
 
   // ---------- Einstellungen ----------
-  // Sprache der App: Deutsch oder Englisch (ein Wechsel lädt die App neu, der Lernstand bleibt)
-  const langSeg = () => `<div class="seg">${[['de', 'Deutsch'], ['en', 'English']].map(([v, l]) =>
-    `<button class="seg-btn${LANG === v ? ' active' : ''}" data-act="lang" data-v="${v}">${l}</button>`).join('')}</div>`;
+// Kurse: welche Sprache lerne ich – und von welcher aus? Jede Lernsprache hat ihren eigenen
+// Lernstand; Indonesisch bleibt derselbe, egal ob von Deutsch oder Englisch aus gelernt.
+const COURSE_OPTIONS = [
+  { target: 'id', source: 'de', flag: '🇮🇩', title: 'Indonesisch', sub: 'von Deutsch aus' },
+  { target: 'id', source: 'en', flag: '🇮🇩', title: 'Indonesian', sub: 'from English' },
+  { target: 'en', source: 'de', flag: '🇬🇧', title: 'Englisch', sub: 'von Deutsch aus' },
+];
+const isCurrentCourse = o => o.target === window.U.TARGET && (window.U.TL.sources.length === 1 || o.source === LANG);
+function learnedIn(target) {
+  try {
+    const st = JSON.parse(localStorage.getItem(window.U.TARGETS[target].key) || 'null');
+    return st && st.cards ? Object.keys(st.cards).length : 0;
+  } catch (e) { return 0; }
+}
+const courseList = () => `<div class="course-pick">${COURSE_OPTIONS.map(o => {
+  const n = learnedIn(o.target), cur = isCurrentCourse(o);
+  return `<button class="course-opt${cur ? ' active' : ''}" data-act="course-set" data-v="${o.target}" data-src="${o.source}">
+    <span class="course-flag">${o.flag}</span>
+    <span class="grow"><b>${o.title}</b><span class="muted small">${o.sub}${n ? ` · ${o.source === 'en' ? `${n} words` : `${n} Wörter`}` : ''}</span></span>
+    ${cur ? `<span class="task-check">${icon('check', 18)}</span>` : ''}
+  </button>`;
+}).join('')}</div>`;
+function courseSheet() {
+  openSheet(`
+    <div class="sheet-head"><h2>${t('Ich lerne …')}</h2>${closeBtn()}</div>
+    ${courseList()}
+    <p class="muted small">${t('Jede Sprache hat ihren eigenen Lernstand. Menüs und Erklärungen erscheinen in der Ausgangssprache.')}</p>`);
+}
 
   function viewSettings() {
     const S = St.S;
@@ -873,9 +904,9 @@
       <header class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('Zurück')}">${icon('back', 26)}</button><h1>${t('Einstellungen')}</h1><span></span></header>
 
       <section class="card">
-        <h3>${t('Sprache der App')} · ${LANG === 'en' ? 'Sprache' : 'Language'}</h3>
-        ${langSeg()}
-        <p class="muted small lang-note">${t('Karten, Lektionen, Gespräche und Menüs in dieser Sprache. Dein Lernstand bleibt gleich.')}</p>
+        <h3>${t('Ich lerne …')}</h3>
+        ${courseList()}
+        <p class="muted small lang-note">${t('Jede Sprache hat ihren eigenen Lernstand. Menüs und Erklärungen erscheinen in der Ausgangssprache.')}</p>
       </section>
 
       <section class="card">
@@ -943,7 +974,7 @@
             <p>${t('<b>Aktives Erinnern:</b> Statt nur zu lesen, holst du die Antwort selbst aus dem Gedächtnis – vom Wiedererkennen über Hören bis zum Eintippen und Sätze-Bauen. Je sicherer ein Wort sitzt, desto schwieriger die Übung.')}</p>
             <p>${t('<b>Anpassung an dich:</b> Die App vergleicht, wie oft du dich erinnerst, mit der Vorhersage, und stellt die Abstände für dich persönlich ein. Die Zahl neuer Wörter richtet sich nach deiner Trefferquote und deiner Tageszeit.')}</p>
             <p>${t('<b>Häufigstes zuerst:</b> Der Kurs beginnt mit den Wörtern und Sätzen, die man im Alltag am meisten braucht. Die Grammatik kommt in kleinen Portionen, genau dann, wenn sie im Kurs auftaucht.')}</p>
-            <p>${t('<b>Tipps:</b> Lerne jeden Tag, lieber kurz als selten lang. Sprich alles laut nach. Sei ehrlich beim Wischen. Und nutze das Gelernte – schreib Freunden auf Indonesisch!')}</p>
+            <p>${t('<b>Tipps:</b> Lerne jeden Tag, lieber kurz als selten lang. Sprich alles laut nach. Sei ehrlich beim Wischen. Und nutze das Gelernte – schreib Freunden auf {L}!')}</p>
           </div>
         </details>
       </section>
@@ -952,7 +983,7 @@
         <h3>${t('Zurücksetzen')}</h3>
         <button class="btn danger block" data-act="reset-all">${t('Gesamten Fortschritt löschen')}</button>
       </section>
-      <p class="muted small center">${t('Bahasa · Indonesisch lernen · {n} Lernkarten', { n: St.ORDER.length })}</p>`;
+      <p class="muted small center">${t('Linguara · {L} lernen · {n} Lernkarten', { n: St.ORDER.length })}</p>`;
   }
 
   function bindSettings() {
@@ -960,9 +991,9 @@
       el.onchange = () => { St.S.settings[el.dataset.toggle] = el.checked; St.save(); };
     });
     const range = app.querySelector('[data-range="rate"]');
-    range.onchange = () => { St.S.settings.rate = +range.value; St.save(); Speech.speak('Selamat pagi, apa kabar?'); };
+    range.onchange = () => { St.S.settings.rate = +range.value; St.save(); Speech.speak(window.U.TL.sample); };
     const sel = app.querySelector('[data-select="voice"]');
-    if (sel) sel.onchange = () => { St.S.settings.voice = sel.value; St.save(); Speech.speak('Terima kasih banyak!'); };
+    if (sel) sel.onchange = () => { St.S.settings.voice = sel.value; St.save(); Speech.speak(window.U.TL.sample2); };
     bindManualPicker(app);
     const time = app.querySelector('[data-time="reminder"]');
     time.onchange = () => { St.S.settings.reminder = time.value || '19:00'; St.save(); };
@@ -1010,11 +1041,11 @@
     const start = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(h)}${pad(m)}00`;
     const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
     return [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Bahasa//Indonesisch lernen//DE', 'CALSCALE:GREGORIAN',
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Linguara//DE', 'CALSCALE:GREGORIAN',
       'BEGIN:VEVENT', `UID:bahasa-${Date.now()}@bahasa-app`, `DTSTAMP:${stamp}`, `DTSTART:${start}`,
-      'DURATION:PT15M', 'RRULE:FREQ=DAILY', 'SUMMARY:' + t('Indonesisch lernen') + ' 🇮🇩',
-      'DESCRIPTION:' + t('Zeit für deine tägliche Lerneinheit. Sampai jumpa!'),
-      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + t('Indonesisch lernen'), 'TRIGGER:PT0M', 'END:VALARM',
+      'DURATION:PT15M', 'RRULE:FREQ=DAILY', 'SUMMARY:' + t('{L} lernen') + ' 🇮🇩',
+      'DESCRIPTION:' + t('Zeit für deine tägliche Lerneinheit. {bye2}'),
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + t('{L} lernen'), 'TRIGGER:PT0M', 'END:VALARM',
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
   }
@@ -1072,7 +1103,7 @@
     return `
       <label class="field-row"><span>${t('Stimme von Hand')}</span><select data-select="manual"><option value="">${t('– wählen –')}</option>${Speech.all.map(v =>
         `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label>
-      <p class="muted small">${t('Nur nötig, wenn deine indonesische Stimme installiert ist, aber nicht erkannt wird.')}</p>`;
+      <p class="muted small">${t('Nur nötig, wenn deine {adj}e Stimme installiert ist, aber nicht erkannt wird.')}</p>`;
   }
   function bindManualPicker(root) {
     const manual = root.querySelector('[data-select="manual"]');
@@ -1084,7 +1115,7 @@
       Speech.refresh();
       if (document.querySelector('.sheet-backdrop')) voiceSheet();
       render(true);
-      Speech.speak('Selamat pagi! Apa kabar?');
+      Speech.speak(window.U.TL.sample);
     };
   }
 
@@ -1096,14 +1127,14 @@
         link: ['Play Store öffnen', 'https://play.google.com/store/apps/details?id=com.google.android.tts'] },
       { icon: '⚙️', title: 'Google als Sprachausgabe wählen',
         text: 'Öffne die <b>Einstellungen</b> deines Handys, tippe oben auf die <b>Suche 🔍</b> und gib <b>„Sprachausgabe“</b> ein (bei Samsung: <b>„Text-zu-Sprache“</b>). Wähle dort als bevorzugte Engine <b>„Sprachdienste von Google“</b>.' },
-      { icon: '⬇️', title: 'Indonesisch herunterladen',
-        text: 'Tippe auf derselben Seite neben „Sprachdienste von Google“ auf das <b>Zahnrad ⚙</b> → <b>Sprachdaten installieren</b> → <b>Indonesisch (Indonesien)</b> → herunterladen. Dann klappt die Aussprache auch ohne Internet.' },
+      { icon: '⬇️', title: '{L} herunterladen',
+        text: 'Tippe auf derselben Seite neben „Sprachdienste von Google“ auf das <b>Zahnrad ⚙</b> → <b>Sprachdaten installieren</b> → <b>{Lfull}</b> → herunterladen. Dann klappt die Aussprache auch ohne Internet.' },
       { icon: '🔄', title: 'Chrome neu starten',
         text: 'Öffne die Übersicht deiner offenen Apps und <b>wische Chrome und diese App weg</b>. Öffne die App dann wieder – sie prüft automatisch, ob die Stimme da ist.', check: true },
     ],
     ios: [
       { icon: '⚙️', title: 'Stimme laden',
-        text: 'Öffne <b>Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen</b>, wähle <b>Indonesisch</b> und lade die Stimme <b>Damayanti</b>.' },
+        text: 'Öffne <b>Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen</b>, wähle <b>{L}</b> und lade die Stimme <b>{iosVoice}</b>.' },
       { icon: '🔄', title: 'App neu starten',
         text: 'Wische die App aus der App-Übersicht weg und öffne sie wieder – sie prüft automatisch, ob die Stimme da ist.', check: true },
     ],
@@ -1135,7 +1166,7 @@
     openSheet(`
       <div class="sheet-head"><h2>${t('Aussprache einrichten')}</h2>${closeBtn()}</div>
       <div class="dots" aria-hidden="true">${steps.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'on' : ''}"></i>`).join('')}</div>
-      ${notFound ? `<div class="callout">${t('Noch keine indonesische Stimme gefunden. Meist hilft es, Chrome ganz zu schließen und die App neu zu öffnen. Prüfe sonst die Schritte davor.')}</div>` : ''}
+      ${notFound ? `<div class="callout">${t('Noch keine {adj}e Stimme gefunden. Meist hilft es, Chrome ganz zu schließen und die App neu zu öffnen. Prüfe sonst die Schritte davor.')}</div>` : ''}
       <div class="wiz">
         <div class="wiz-icon">${s.icon}</div>
         <div class="wiz-step">${t('Schritt {n} von {m}', { n: i + 1, m: steps.length })}</div>
@@ -1268,9 +1299,12 @@
       case 'profile': profileSheet(); break;
       case 'ask': ask.q = v; runAsk(v); break;
       case 'ask-clear': ask = { q: '', res: undefined }; render(true); break;
-      case 'lang':
-        if (v !== LANG) { S.settings.lang = v; St.save(); location.reload(); }
+      case 'course-sheet': courseSheet(); break;
+      case 'course-set': {
+        const o = COURSE_OPTIONS.find(x => x.target === v && x.source === a.dataset.src);
+        if (o && !isCurrentCourse(o)) { St.save(); window.U.setCourse(o.target, o.source); location.reload(); } else closeSheet();
         break;
+      }
       case 'start': startSession(); break;
       case 'more': St.addExtraNew(5); startSession(); break;
       case 'trainer': startTrainer('due'); break;
@@ -1317,8 +1351,8 @@
         break;
       case 'test-voice':
         if (!Speech.supported) toast(t('Dieser Browser kann nicht vorlesen.'));
-        else if (Speech.missing) { toast(t('Noch keine indonesische Stimme gefunden.')); if (!document.querySelector('.sheet-backdrop')) voiceSheet(); }
-        else Speech.speak('Selamat pagi! Apa kabar?');
+        else if (Speech.missing) { toast(t('Noch keine {adj}e Stimme gefunden.')); if (!document.querySelector('.sheet-backdrop')) voiceSheet(); }
+        else Speech.speak(window.U.TL.sample);
         break;
       case 'voice-step': voiceSheet(+v); break;
       case 'voice-recheck': {
@@ -1327,7 +1361,7 @@
         if (!Speech.available) voiceSheet(null, true);
         else {
           if (!wizard) voiceSheet();
-          Speech.speak('Halo! Selamat belajar!');
+          Speech.speak(window.U.TL.hello);
         }
         break;
       }
@@ -1382,7 +1416,7 @@
   Speech.onMissing = () => {
     if (Date.now() - lastMissingHint < 30000) return;
     lastMissingHint = Date.now();
-    toast(t('Keine indonesische Stimme – Anleitung unter Einstellungen → Aussprache.'));
+    toast(t('Keine {adj}e Stimme – Anleitung unter Einstellungen → Aussprache.'));
   };
   let voiceState = '';
   Speech.listeners.push(() => {
@@ -1392,7 +1426,7 @@
       St.S.ui.voiceWizard = false;
       St.S.ui.voiceStep = 0;
       St.save();
-      toast(t('✅ Indonesische Stimme gefunden – die Aussprache ist bereit!'));
+      toast(t('✅ {Adj}e Stimme gefunden – die Aussprache ist bereit!'));
       if (document.querySelector('.sheet-backdrop .wiz')) voiceSheet();
     }
     const now = `${Speech.loaded}|${Speech.voices.length}|${Speech.all.length}`;

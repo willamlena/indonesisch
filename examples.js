@@ -64,6 +64,44 @@
       ['Ini tidak terlalu {w}.', 'Das ist nicht allzu {d}.', "This isn't too {d}."],
     ],
   };
+// Englischkurs: Satzbausteine auf Englisch ({w} = englisches Wort, {d} = deutsche Bedeutung).
+// Nomen stehen mit „the“, damit die Sätze immer grammatisch stimmen.
+const TEMPLATES_ENGLISH = {
+  n: [
+    ['Where is the {w}?', 'Wo ist {d}?'],
+    ['I like the {w}.', 'Ich mag {d}.'],
+    ["I'm looking for the {w}.", 'Ich suche {d}.'],
+    ['How much is the {w}?', 'Wie viel kostet {d}?'],
+    ['The {w} is very nice.', '{D} ist sehr schön.'],
+    ['Can you give me the {w}, please?', 'Kannst du mir bitte {d} geben?'],
+    ['Have you seen the {w}?', 'Hast du {d} gesehen?'],
+    ['The {w} is over there.', '{D} ist dort drüben.'],
+    ["I can't find the {w}.", 'Ich finde {d} nicht.'],
+    ['We need the {w} tomorrow.', 'Wir brauchen {d} morgen.'],
+  ],
+  v: [
+    ['I want to {w}.', 'Ich will {d}.'],
+    ['Can you {w}?', 'Kannst du {d}?'],
+    ["Let's {w}!", 'Lass uns {d}!'],
+    ['I have to {w} today.', 'Ich muss heute {d}.'],
+    ["I'd like to {w}.", 'Ich möchte gern {d}.'],
+    ['We can {w} tomorrow.', 'Wir können morgen {d}.'],
+    ["Please don't {w} here.", 'Bitte hier nicht {d}.'],
+    ["I don't want to {w}.", 'Ich will nicht {d}.'],
+    ['Do you want to {w}?', 'Willst du {d}?'],
+    ['I need to {w} now.', 'Ich muss jetzt {d}.'],
+  ],
+  a: [
+    ["It's very {w}.", 'Es ist sehr {d}.'],
+    ["It's too {w}.", 'Es ist zu {d}.'],
+    ["That isn't {w}.", 'Das ist nicht {d}.'],
+    ['Is it {w}?', 'Ist es {d}?'],
+    ["It's a bit {w}.", 'Es ist etwas {d}.'],
+    ['I think it is {w}.', 'Ich finde, es ist {d}.'],
+    ['Why is it so {w}?', 'Warum ist es so {d}?'],
+    ["It isn't too {w}.", 'Es ist nicht allzu {d}.'],
+  ],
+};
   const POS_LABEL = { n: t('Ding'), v: t('Tätigkeit'), a: t('Eigenschaft'), x: t('Ausdruck') };
 
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -94,6 +132,18 @@
     if (!t || /^\d+$/.test(t) || K.has(t)) return true;
     for (const s of SUFFIX) if (t.length > s.length + 2 && t.endsWith(s) && K.has(t.slice(0, -s.length))) return true;
     if (t.length > 4 && (t.startsWith('di') || t.startsWith('se')) && K.has(t.slice(2))) return true; // dibungkus, setinggi
+    if (window.U.TARGET === 'en') {
+      // Englische Formen: plural/3. Person -s, -es, -ies; Vergangenheit -ed; -ing; Apostrophe (I'm, don't, Sarah's)
+      if (t.includes("'") && tokenKnown(t.split("'")[0], K)) return true;
+      const stems = [];
+      if (t.endsWith('ies')) stems.push(t.slice(0, -3) + 'y');
+      if (t.endsWith('es')) stems.push(t.slice(0, -2));
+      if (t.endsWith('s')) stems.push(t.slice(0, -1));
+      if (t.endsWith('ed')) stems.push(t.slice(0, -2), t.slice(0, -1));
+      if (t.endsWith('ing')) stems.push(t.slice(0, -3), t.slice(0, -3) + 'e');
+      if (t.endsWith('ly')) stems.push(t.slice(0, -2));
+      if (stems.some(x => x.length > 1 && K.has(x))) return true;
+    }
     return false;
   }
 
@@ -173,7 +223,7 @@
       const r = analyse(e.text, forms, K);
       if (r.hasTarget) cands.push(Object.assign(r, { deHtml: esc(e.de), src: 'kurs' }));
     }
-    const tpl = card.custom && TEMPLATES[card.pos];
+    const tpl = card.custom && (window.U.TARGET === 'en' ? (TEMPLATES_ENGLISH[card.pos] || []).map(([a, b]) => [a, b, b]) : TEMPLATES[card.pos]);
     if (tpl) {
       const w = card.indo.split(' / ')[0].trim();
       const d0 = firstMeaning(card.de);

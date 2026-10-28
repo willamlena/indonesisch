@@ -1,7 +1,7 @@
 // Datenhaltung: Kursaufbau aus vocab.js, Lernstand im localStorage des Handys,
 // Tagesplanung und Anpassung an das persönliche Lerntempo.
 (function () {
-  const KEY = 'bahasa-indonesisch.v1';
+  const KEY = window.U.TL.key; // Lernstand je Lernsprache
   const DAY = 86400000;
   const ROLLOVER_H = 4; // ein Lerntag beginnt um 4 Uhr früh – Nachteulen zählen noch zum Vortag
   const { norm, t } = window.U;
@@ -57,7 +57,15 @@
   function answersFor(card) {
     const list = card.indo.split(' / ');
     if (card.kind === 'w' && card.coll) list.push(...card.coll.split(' / '));
-    return list.map(s => s.trim()).filter(Boolean);
+    const out = list.map(s => s.trim()).filter(Boolean);
+    // Englisch: „an apple“, „the bill“ oder „to eat“ zählen auch als richtig
+    if (window.U.TARGET === 'en' && card.kind === 'w') {
+      out.slice().forEach(a => {
+        if (/^(a|an|the|to) /i.test(a)) out.push(a.replace(/^(a|an|the|to) /i, ''));
+        else if (!/^[A-Z]/.test(a) && !/ /.test(a)) out.push('the ' + a, 'a ' + a, 'an ' + a, 'to ' + a);
+      });
+    }
+    return out;
   }
 
   // ---------- Zustand ----------

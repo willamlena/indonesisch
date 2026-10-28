@@ -1,7 +1,7 @@
 {
-  "name": "Bahasa – Indonesisch lernen",
-  "short_name": "Bahasa",
-  "description": "Indonesisch lernen – jeden Tag ein paar Minuten, mit verteilter Wiederholung.",
+  "name": "Linguara – Sprachen lernen",
+  "short_name": "Linguara",
+  "description": "Sprachen lernen – jeden Tag ein paar Minuten: Indonesisch und Englisch, mit verteilter Wiederholung und Gesprächstrainer.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

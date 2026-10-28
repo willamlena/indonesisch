@@ -197,13 +197,13 @@
         ? `<div class="fc-q"><div class="big-word">${esc(card.indo)}</div>${speakBtn(card.indo)}</div>
            <div class="fc-ask">${t('Was bedeutet das?')}</div>`
         : `<div class="fc-q"><div class="big-de">${esc(card.de)}</div></div>
-           <div class="fc-ask">${t('Wie sagt man das auf Indonesisch? Sag es laut!')}</div>`;
+           <div class="fc-ask">${t('Wie sagt man das auf {L}? Sag es laut!')}</div>`;
       const back = dir === 'id'
         ? `<div class="fc-a meaning">${esc(card.de)}</div>`
         : `<div class="fc-a"><span class="big-word">${esc(card.indo)}</span>${speakBtn(card.indo)}</div>`;
       this.body.innerHTML = `
         <div class="ex-kicker">
-          <span class="chip">${dir === 'id' ? t('Indonesisch → Deutsch') : t('Deutsch → Indonesisch')}</span>
+          <span class="chip">${dir === 'id' ? t('{L} → Deutsch') : t('Deutsch → {L}')}</span>
           <span class="chip soft">${label}</span>
         </div>
         <div class="fc fc-card">
@@ -362,7 +362,7 @@
       this.body.innerHTML = `
         <div class="summary">
           <div class="big-emoji">${r.cards + r.learned === 0 ? '✅' : acc >= 0.85 ? '🎉' : acc >= 0.65 ? '👏' : '💪'}</div>
-          <h2>${r.cards + r.learned === 0 ? t('Nichts mehr fällig') : acc >= 0.85 ? 'Bagus sekali!' : acc >= 0.65 ? 'Kerja bagus!' : 'Tetap semangat!'}</h2>
+          <h2>${r.cards + r.learned === 0 ? t('Nichts mehr fällig') : acc >= 0.85 ? window.U.TL.great : acc >= 0.65 ? window.U.TL.good : window.U.TL.keep}</h2>
           <p class="muted">${r.cards + r.learned === 0 ? t('Im Moment gibt es keine Karten zu wiederholen.') : t('Runde geschafft.')}</p>
           ${r.cards + r.learned ? `
           <div class="sum-grid">

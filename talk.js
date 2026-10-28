@@ -36,6 +36,18 @@
       const o = OPTIONS[k].find(x => x[0] === out[k]);
       if (o) out[k + 'De'] = label(o);
     });
+    // Englischkurs: die Wörter in der Lernsprache sind die englischen Bezeichnungen
+    if (window.U.TARGET === 'en') {
+      const EN_FALLBACK = { asal: 'Germany', kota: 'London', kerja: 'office worker', hobi: 'travelling', pasangan: 'Ben', pasanganRel: 'partner' };
+      Object.keys(EN_FALLBACK).forEach(k => { if (!(p[k] || '').trim()) out[k] = EN_FALLBACK[k]; });
+      ['asal', 'kerja', 'hobi', 'pasanganRel'].forEach(k => {
+        const o = OPTIONS[k].find(x => x[0] === (p[k] || '').trim());
+        if (o) out[k] = o[2].replace(/^the /, '');
+      });
+      if (out.asal === 'Netherlands') out.asal = 'the Netherlands';
+    }
+    // „a/an“ vor dem Beruf (für englische Sätze wie „I'm an engineer“)
+    out.kerjaA = (/^[aeiou]/i.test(out.kerja) ? 'an ' : 'a ') + out.kerja;
     out.hasPartner = !!(p.pasangan || '').trim();
     out.hasName = !!(p.nama || '').trim();
     out.bu = p.anrede === 'perempuan' ? 'Bu' : p.anrede === 'laki-laki' ? 'Pak' : 'Kak';
@@ -46,7 +58,7 @@
 
   // ---------- Antworten prüfen ----------
   const SUF = ['nya', 'lah', 'kah', 'ku', 'mu', 'pun'];
-  const NUM_WORDS = new Set(['nol', 'kosong', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas', 'belas', 'puluh', 'ratus', 'ribu', 'juta']);
+  const NUM_WORDS = new Set(['zero', 'oh', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'double', 'nol', 'kosong', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas', 'belas', 'puluh', 'ratus', 'ribu', 'juta']);
 
   function parseKey(raw, prof) {
     let s = fill(raw, prof).trim();
@@ -114,8 +126,11 @@
   }
 
   // ---------- Gesprächsablauf ----------
-  const CONFUSED = ['Maaf, bagaimana?', 'Maaf, maksudnya?', 'Hmm, maaf, saya kurang mengerti.'];
-  const CONFUSED_DE = LANG === 'en'
+  const CONFUSED = window.U.TARGET === 'en' ? ['Sorry, could you say that again?', 'Sorry, what do you mean?', "Hmm, sorry, I don't quite follow."]
+    : ['Maaf, bagaimana?', 'Maaf, maksudnya?', 'Hmm, maaf, saya kurang mengerti.'];
+  const CONFUSED_DE = window.U.TARGET === 'en'
+    ? { 'Sorry, could you say that again?': 'Entschuldigung, kannst du das noch mal sagen?', 'Sorry, what do you mean?': 'Entschuldigung, was meinst du?', "Hmm, sorry, I don't quite follow.": 'Hm, tut mir leid, ich komme nicht ganz mit.' }
+    : LANG === 'en'
     ? { 'Maaf, bagaimana?': 'Sorry, pardon?', 'Maaf, maksudnya?': 'Sorry, what do you mean?', 'Hmm, maaf, saya kurang mengerti.': "Hmm, sorry, I don't quite understand." }
     : { 'Maaf, bagaimana?': 'Entschuldigung, wie bitte?', 'Maaf, maksudnya?': 'Entschuldigung, was meinst du?', 'Hmm, maaf, saya kurang mengerti.': 'Hm, tut mir leid, das verstehe ich nicht ganz.' };
 
@@ -190,7 +205,7 @@
           <p class="setting">${esc(fill(d.setting, p))}</p>
           <p class="goal"><b>${t('Dein Ziel:')}</b> ${esc(fill(d.goal, p))}</p>
           ${needProfile ? `<div class="callout">${t('Dieses Gespräch nutzt deine Angaben unter <b>Über mich</b> (Name, Herkunft, Beruf …).')} <button class="link-btn" data-s="profile">${t('Jetzt ausfüllen')}</button></div>` : ''}
-          <p class="muted small">${t('Antworte auf Indonesisch – tippen oder 🎤 sprechen. Hilfe gibt es unten: Tipp, Auswahl oder Lösung. Tippe auf einen Satz deines Gegenübers für die Übersetzung.')}</p>
+          <p class="muted small">${t('Antworte auf {L} – tippen oder 🎤 sprechen. Hilfe gibt es unten: Tipp, Auswahl oder Lösung. Tippe auf einen Satz deines Gegenübers für die Übersetzung.')}</p>
         </div>`;
       const pb = this.chat.querySelector('[data-s="profile"]');
       if (pb) pb.onclick = () => this.onProfile && this.onProfile(() => { this.prof = profile(); this.intro(); });
@@ -249,7 +264,7 @@
         <div class="task-card"><span class="label">${t('Deine Aufgabe')}</span><div>${esc(fill(step.task, p))}</div></div>
         <div class="help-box" hidden></div>
         <form class="talk-input" autocomplete="off">
-          <input type="text" placeholder="${t('Antwort auf Indonesisch …')}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="${t('Antwort')}">
+          <input type="text" placeholder="${t('Antwort auf {L} …')}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="${t('Antwort')}">
           ${Listen.supported ? `<button type="button" class="icon-btn mic" data-s="mic" aria-label="${t('Sprechen')}">${icon('mic', 22)}</button>` : ''}
           <button type="submit" class="icon-btn send" aria-label="${t('Senden')}">${icon('send', 20)}</button>
         </form>
@@ -282,7 +297,7 @@
       const mic = this.foot.querySelector('[data-s="mic"]');
       if (mic) mic.classList.add('listening');
       const ok = Listen.start({
-        lang: 'id-ID',
+        lang: window.U.TL.bcp,
         onInterim: t => { if (this.input) this.input.value = t; },
         onEnd: alts => {
           if (mic) mic.classList.remove('listening');
@@ -299,7 +314,7 @@
           if (code === 'no-speech' || code === 'aborted') return;
           if (code === 'not-allowed' || code === 'service-not-allowed') toast(t('Das Mikrofon ist nicht erlaubt. Du kannst die Antwort auch tippen oder das Mikrofon der Tastatur nutzen.'));
           else if (code === 'network') toast(t('Die Spracherkennung braucht hier Internet. Tippe die Antwort oder nutze das Mikrofon der Tastatur.'));
-          else if (code === 'language-not-supported') toast(t('Dein Handy erkennt kein Indonesisch. Nutze das Mikrofon der Tastatur.'));
+          else if (code === 'language-not-supported') toast(t('Dein Handy erkennt kein {L}. Nutze das Mikrofon der Tastatur.'));
         },
       });
       if (!ok && mic) mic.classList.remove('listening');
@@ -371,7 +386,7 @@
         const optTip = res.missingOpt.length ? `<div>${t('Tipp: Mit <b>{w}</b> ({l}) klingt es noch natürlicher.', { w: esc(res.missingOpt[0].first), l: esc(res.missingOpt[0].label) })}</div>` : '';
         const fb = document.createElement('div');
         fb.className = 'fb-mini ok';
-        fb.innerHTML = `<div>✓ ${this.helped ? t('Gut gemacht!') : pick([t('Verstanden!'), 'Bagus!', t('Sehr gut!'), 'Mantap!'])}</div>
+        fb.innerHTML = `<div>✓ ${this.helped ? t('Gut gemacht!') : pick([t('Verstanden!'), ...window.U.TL.praise, t('Sehr gut!')])}</div>
           ${same ? '' : `<div class="alt">${t('Auch gut:')} <b>${esc(model)}</b> <button class="speak-btn sm" data-say="${esc(model)}" aria-label="${t('Vorlesen')}">${icon('speaker', 14)}</button></div>`}
           ${optTip}`;
         userEl.appendChild(fb);
@@ -436,8 +451,8 @@
         if (r && !r.part && !S.cards[r.card.id] && !fresh.some(f => f.id === r.card.id)) fresh.push(r.card);
       });
       const hard = this.results.filter(r => r.status !== 'ok');
-      const head = score >= 0.85 ? ['🎉', 'Bagus sekali!', t('Du hast das Gespräch super gemeistert.')]
-        : score >= 0.5 ? ['👏', 'Kerja bagus!', t('Gut gemacht – mit etwas Übung sitzt es bald.')] : ['💪', 'Tetap semangat!', t('Jedes Gespräch macht dich sicherer. Probier es gleich noch einmal!')];
+      const head = score >= 0.85 ? ['🎉', window.U.TL.great, t('Du hast das Gespräch super gemeistert.')]
+        : score >= 0.5 ? ['👏', window.U.TL.good, t('Gut gemacht – mit etwas Übung sitzt es bald.')] : ['💪', window.U.TL.keep, t('Jedes Gespräch macht dich sicherer. Probier es gleich noch einmal!')];
       this.body.scrollTop = 0;
       this.chat.innerHTML = `
         <div class="summary">
